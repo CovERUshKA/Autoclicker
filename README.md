@@ -1,4 +1,4 @@
-# Autoclicker source code
+# Autoclicker
 
 This is source code of my Autoclicker with Macros
 
