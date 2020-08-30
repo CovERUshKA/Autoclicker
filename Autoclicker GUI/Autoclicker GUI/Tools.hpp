@@ -13,11 +13,6 @@
 #define ReCa reinterpret_cast
 #define StCa static_cast
 
-struct CUSTOMVERTEX {
-	FLOAT x, y, z, RHW;
-	DWORD color;
-};
-
 struct Vector2D {
 	FLOAT x, y;
 };
