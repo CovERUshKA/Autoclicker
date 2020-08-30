@@ -40,31 +40,23 @@ HWND overlayhWnd;
 HWND inputhWnd;
 BOOL activate = FALSE;
 BOOL quit = FALSE;
-FLOAT opos = 0;
 HWINSTA winSta;
 
 ID3D11Device* g_pd3dDevice;
-ID3D11DeviceContext* g_pd3dDeviceContext;
-ID3D11RenderTargetView* g_mainRenderTargetView;
 IDXGIDevice4* g_pdxgiDevice;
 IDXGIFactory5* dxFactory;
-IDXGISwapChain4* g_pSwapChain;
 ID2D1Factory2* d2Factory;
 IDXGISurface2* surface;
 ID2D1DeviceContext* dc;
 ID2D1Device* d2Device;
-ID2D1Bitmap* bitmap;
 IDCompositionVisual* visual;
-IDCompositionDevice* dcompDevice;
 IDCompositionDesktopDevice* m_device;
-IDCompositionTarget* target;
-ID2D1SolidColorBrush* brush;
 
 IDCompositionTarget*  m_target;
 IDCompositionVisual2* m_visual;
 IDCompositionSurface* m_surface;
-D2D_SIZE_F                   m_size;
-D2D_POINT_2F                 m_dpi;
+D2D_SIZE_F            m_size;
+D2D_POINT_2F          m_dpi;
 
 HHOOK hookLowLvlKeyboard;
 HHOOK hookLowLvlMouse;
@@ -83,14 +75,6 @@ template <class T> void  SafeReleasee(T** ppT)
 	}
 }
 
-void HR(HRESULT const result)
-{
-	if (S_OK != result)
-	{
-		Log("HR Error");
-	}
-}
-
 bool show_demo_window = true;
 bool show_another_window = false;
 FLOAT clear_color[4] = { 0.00f, 0.00f, 0.00f, 0.30f } ;
@@ -104,10 +88,19 @@ HRESULT Overlay::Redraw()
 		return 0;
 
 	POINT offset = {};
-	HR(m_surface->BeginDraw(nullptr,
+	hr = m_surface->BeginDraw(nullptr,
 		__uuidof(dc),
 		reinterpret_cast<void**>(&dc),
-		&offset));
+		&offset);
+	if (FAILED(hr))
+	{
+		Log("Unable to m_surface->BeginDraw(nullptr,\
+			__uuidof(dc),\
+			reinterpret_cast<void**>(&dc),\
+			&offset)");
+
+		goto end;
+	}
 
 	draw.pRenderTarget = dc;
 
@@ -121,25 +114,34 @@ HRESULT Overlay::Redraw()
 
 	COGUI::Render();
 
-	if (opos == 1000)
+	hr = m_surface->EndDraw();
+	if (FAILED(hr))
 	{
-		opos = 0;
+		Log("Unable to m_surface->EndDraw()");
+		goto end;
 	}
 
-	opos += 1;
+	hr = m_device->Commit();
+	if (FAILED(hr))
+	{
+		Log("Unable to m_device->Commit()");
+		goto end;
+	}
 
-	HR(m_surface->EndDraw());
-
-	HR(m_device->Commit());
+end:
 
 	return hr;
 }
 
 HRESULT Initialize()
 {
-	HRESULT hr = S_OK;
+	RECT rect;
+	HRESULT hr;
+	unsigned x;
+	unsigned y;
+	HMONITOR monitor;
 
-	if (FAILED(D3D11CreateDevice(nullptr,
+	hr = D3D11CreateDevice(nullptr,
 		D3D_DRIVER_TYPE_HARDWARE,
 		nullptr,
 		D3D11_CREATE_DEVICE_BGRA_SUPPORT,
@@ -147,110 +149,106 @@ HRESULT Initialize()
 		D3D11_SDK_VERSION,
 		&g_pd3dDevice,
 		nullptr,
-		nullptr)))
+		nullptr);
+	if (FAILED(hr))
 	{
 		Log("Unable to D3D11CreateDevice");
-		return -1;
+		goto end;
 	}
 
-	if (FAILED(g_pd3dDevice->QueryInterface(&g_pdxgiDevice)))
+	hr = g_pd3dDevice->QueryInterface(&g_pdxgiDevice);
+	if (FAILED(hr))
 	{
 		Log("Unable to g_pd3dDevice->QueryInterface");
-		return -1;
+		goto end;
 	}
 	
-	if (FAILED(D2D1CreateDevice(g_pdxgiDevice,
+	hr = D2D1CreateDevice(g_pdxgiDevice,
 		nullptr,
-		&d2Device)))
+		&d2Device);
+	if (FAILED(hr))
 	{
 		Log("Unable to D2D1CreateDevice");
-		return -1;
+		goto end;
 	}
 
-	if (FAILED(DCompositionCreateDevice3(
+	hr = DCompositionCreateDevice3(
 		d2Device,
 		__uuidof(m_device),
-		reinterpret_cast<void**>(&m_device))))
+		reinterpret_cast<void**>(&m_device));
+	if (FAILED(hr))
 	{
 		Log("Unable to DCompositionCreateDevice3");
-		return -1;
+		goto end;
 	}
 
-	if (FAILED(m_device->CreateTargetForHwnd(overlayhWnd,
+	hr = m_device->CreateTargetForHwnd(overlayhWnd,
 		false,
-		&m_target)))
+		&m_target);
+	if (FAILED(hr))
 	{
 		Log("Unable to m_device->CreateTargetForHwnd");
-		return -1;
+		goto end;
 	}
 
-	if (FAILED(m_device->CreateVisual(&m_visual)))
+	hr = m_device->CreateVisual(&m_visual);
+	if (FAILED(hr))
 	{
 		Log("Unable to m_device->CreateVisual");
-		return -1;
+		goto end;
 	}
 
-	RECT rect = {};
 	if (!GetClientRect(overlayhWnd,
 		&rect))
 	{
 		Log("Unable to GetClientRect");
-		return -1;
+		goto end;
 	}
 
-	if (FAILED(m_device->CreateSurface(rect.right - rect.left,
+	hr = m_device->CreateSurface(rect.right - rect.left,
 		rect.bottom - rect.top,
 		DXGI_FORMAT_B8G8R8A8_UNORM,
 		DXGI_ALPHA_MODE_PREMULTIPLIED,
-		&m_surface)))
+		&m_surface);
+	if (FAILED(hr))
 	{
 		Log("Unable to m_device->CreateSurface");
-		return -1;
+		goto end;
 	}
 
-	if (FAILED(m_visual->SetContent(m_surface)))
+	hr = m_visual->SetContent(m_surface);
+	if (FAILED(hr))
 	{
 		Log("Unable to m_visual->SetContent");
-		return -1;
+		goto end;
 	}
 
-	if (FAILED(m_target->SetRoot(m_visual)))
+	hr = m_target->SetRoot(m_visual);
+	if (FAILED(hr))
 	{
-		Log("Unable to m_target->SetRoot");
-		return -1;
+		Log("Unable to target->SetRoot");
+		goto end;
 	}
 
-	if (FAILED(d2Device->CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_NONE,
-		&dc)))
+	hr = d2Device->CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_NONE,
+		&dc);
+	if (FAILED(hr))
 	{
 		Log("Unable to d2Device->CreateDeviceContext");
-		return -1;
+		goto end;
 	}
 
-	D2D_COLOR_F const color = D2D1::ColorF(0.26f,
-		0.56f,
-		0.87f,
-		0.5f);
-
-	if (FAILED(dc->CreateSolidColorBrush(color,
-		&brush)))
-	{
-		Log("Unable to dc->CreateSolidColorBrush");
-		return -1;
-	}
-
-	HMONITOR const monitor = MonitorFromWindow(overlayhWnd,
+	monitor = MonitorFromWindow(overlayhWnd,
 		MONITOR_DEFAULTTONEAREST);
-	unsigned x = 0;
-	unsigned y = 0;
 	
-	if (FAILED(GetDpiForMonitor(monitor,
+	hr = GetDpiForMonitor(monitor,
 		MDT_EFFECTIVE_DPI,
 		&x,
-		&y)))
+		&y);
+	if (FAILED(hr))
 	{
 		Log("Unable to GetDpiForMonitor");
-		return -1;
+		goto end;
 	}
 
 	m_dpi.x = static_cast<float>(x);
@@ -258,7 +256,13 @@ HRESULT Initialize()
 	m_size.width = (rect.right - rect.left) * 96 / m_dpi.x;
 	m_size.height = (rect.bottom - rect.top) * 96 / m_dpi.y;
 
-	return TRUE;
+end:
+	if (FAILED(hr))
+	{
+		CleanupDevices();
+	}
+
+	return hr;
 }
 
 LRESULT CALLBACK Overlay::LowLevelKeyboardProc(
@@ -455,6 +459,8 @@ BOOL Overlay::Work()
 
 BOOL Overlay::Toggle()
 {
+	HRESULT hr = S_OK;
+
 	activate = !activate;
 
 	if (activate)
@@ -469,12 +475,24 @@ BOOL Overlay::Toggle()
 	else
 	{
 		D2D1_RECT_F rectf = D2D1::RectF(0, 0, 0, 0);
-		HR(m_visual->SetClip(rectf));
+		hr = m_visual->SetClip(rectf);
+		if (FAILED(hr))
+		{
+			Log("Unable to m_visual->SetClip(rectf)");
+			goto end;
+		}
 
-		HR(m_device->Commit());
+		hr = m_device->Commit();
+		if (FAILED(hr))
+		{
+			Log("Unable to m_device->Commit()");
+			goto end;
+		}
 
 		SetWindowLongPtrW(overlayhWnd, GWL_EXSTYLE, GetWindowLongPtrW(overlayhWnd, GWL_EXSTYLE) | WS_EX_TRANSPARENT);
 	}
+
+end:
 
 	return TRUE;
 }
@@ -605,20 +623,13 @@ BOOL Overlay::InitInstance(HINSTANCE hInstance, ATOM aClass, int nCmdShow)
 
 BOOL CleanupDevices()
 {
-	SafeReleasee(&brush);
-	SafeReleasee(&target);
-	SafeReleasee(&dcompDevice);
-	SafeReleasee(&visual);
-	SafeReleasee(&bitmap);
-	SafeReleasee(&d2Device);
 	SafeReleasee(&dc);
-	SafeReleasee(&surface);
-	SafeReleasee(&d2Factory);
-	SafeReleasee(&dxFactory);
-	SafeReleasee(&g_pSwapChain);
+	SafeReleasee(&m_surface);
+	SafeReleasee(&m_visual);
+	SafeReleasee(&m_target);
+	SafeReleasee(&m_device);
+	SafeReleasee(&d2Device);
 	SafeReleasee(&g_pdxgiDevice);
-	SafeReleasee(&g_mainRenderTargetView);
-	SafeReleasee(&g_pd3dDeviceContext);
 	SafeReleasee(&g_pd3dDevice);
 
 	return TRUE;

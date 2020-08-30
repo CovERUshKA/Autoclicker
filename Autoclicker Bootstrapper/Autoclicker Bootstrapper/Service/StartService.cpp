@@ -7,8 +7,9 @@ BOOL StartupSvc()
 	if (!CheckSvc())
 		return FALSE;
 
+	BOOL bRet;
 	SC_HANDLE schSCManager;
-	SC_HANDLE schService;
+	SC_HANDLE schService = 0;
 	SERVICE_STATUS_PROCESS ssStatus;
 	ULONGLONG dwStartTickCount;
 	DWORD dwBytesNeeded, dwWaitTime, dwOldCheckPoint;
@@ -23,7 +24,9 @@ BOOL StartupSvc()
 	if (!schSCManager)
 	{
 		Log("OpenSCManager failed");
-		return FALSE;
+
+		bRet = FALSE;
+		goto end;
 	}
 
 	Log("SCManager opened");
@@ -38,8 +41,9 @@ BOOL StartupSvc()
 	if (!schService)
 	{
 		Log("OpenService failed");
-		CloseServiceHandle(schSCManager);
-		return FALSE;
+
+		bRet = FALSE;
+		goto end;
 	}
 
 	Log("Service opened");
@@ -53,9 +57,9 @@ BOOL StartupSvc()
 		&dwBytesNeeded))                  // size needed if buffer is too small
 	{
 		Log("QueryServiceStatusEx failed");
-		CloseServiceHandle(schService);
-		CloseServiceHandle(schSCManager);
-		return FALSE;
+
+		bRet = FALSE;
+		goto end;
 	}
 
 	// Check if the service is already running. It would be possible 
@@ -63,9 +67,8 @@ BOOL StartupSvc()
 
 	if (ssStatus.dwCurrentState != SERVICE_STOPPED && ssStatus.dwCurrentState != SERVICE_STOP_PENDING)
 	{
-		CloseServiceHandle(schService);
-		CloseServiceHandle(schSCManager);
-		return TRUE;
+		bRet = FALSE;
+		goto end;
 	}
 
 	// Save the tick count and initial checkpoint.
@@ -100,9 +103,9 @@ BOOL StartupSvc()
 			&dwBytesNeeded))              // size needed if buffer is too small
 		{
 			Log("QueryServiceStatusEx failed");
-			CloseServiceHandle(schService);
-			CloseServiceHandle(schSCManager);
-			return FALSE;
+
+			bRet = FALSE;
+			goto end;
 		}
 
 		if (ssStatus.dwCheckPoint > dwOldCheckPoint)
@@ -117,9 +120,9 @@ BOOL StartupSvc()
 			if (GetTickCount64() - dwStartTickCount > ssStatus.dwWaitHint)
 			{
 				Log("Timeout waiting for service to stop");
-				CloseServiceHandle(schService);
-				CloseServiceHandle(schSCManager);
-				return FALSE;
+
+				bRet = FALSE;
+				goto end;
 			}
 		}
 	}
@@ -134,9 +137,9 @@ BOOL StartupSvc()
 		NULL))      // no arguments 
 	{
 		Log("StartService failed");
-		CloseServiceHandle(schService);
-		CloseServiceHandle(schSCManager);
-		return FALSE;
+
+		bRet = FALSE;
+		goto end;
 	}
 
 	// Check the status until the service is no longer start pending. 
@@ -149,9 +152,9 @@ BOOL StartupSvc()
 		&dwBytesNeeded))              // if buffer too small
 	{
 		Log("QueryServiceStatusEx failed");
-		CloseServiceHandle(schService);
-		CloseServiceHandle(schSCManager);
-		return FALSE;
+
+		bRet = FALSE;
+		goto end;
 	}
 
 	// Save the tick count and initial checkpoint.
@@ -204,15 +207,17 @@ BOOL StartupSvc()
 		}
 	}
 
-	CloseServiceHandle(schService);
-	CloseServiceHandle(schSCManager);
+end:
+	if (schService) CloseServiceHandle(schService);
+	if (schSCManager) CloseServiceHandle(schService);
 
 	return TRUE;
 }
 
 BOOL InstallSvc(SC_HANDLE schSCManager)
 {
-	SC_HANDLE schService;
+	BOOL bRet;
+	SC_HANDLE schService = 0;
 	TCHAR szPath[MAX_PATH];
 
 	Log("Installing service...");
@@ -220,7 +225,9 @@ BOOL InstallSvc(SC_HANDLE schSCManager)
 	if (!GetModuleFileNameW(NULL, szPath, MAX_PATH))
 	{
 		Log("GetModuleFileName failed");
-		return FALSE;
+
+		bRet = FALSE;
+		goto end;
 	}
 
 	// Create the service
@@ -243,24 +250,27 @@ BOOL InstallSvc(SC_HANDLE schSCManager)
 	if (schService == NULL)
 	{
 		Log("CreateService failed");
-		CloseServiceHandle(schSCManager);
-		return FALSE;
+
+		bRet = FALSE;
+		goto end;
 	}
 
 	Log("Service installed");
 
-	CloseServiceHandle(schService);
-	CloseServiceHandle(schSCManager);
+end:
+	if (schService) CloseServiceHandle(schService);
+	if (schSCManager) CloseServiceHandle(schSCManager);
 
 	return TRUE;
 }
 
 BOOL CheckSvc()
 {
+	BOOL bRet;
 	SC_HANDLE schSCManager;
-	SC_HANDLE schService;
+	SC_HANDLE schService = 0;
 	DWORD dwError, dwBytesNeeded;
-	LPQUERY_SERVICE_CONFIG lpConfig;
+	LPQUERY_SERVICE_CONFIG lpConfig = 0;
 	LSTATUS lStatus;
 
 	Log("Service checking...");
@@ -275,7 +285,9 @@ BOOL CheckSvc()
 	if (!schSCManager)
 	{
 		Log("OpenSCManager failed");
-		return FALSE;
+
+		bRet = FALSE;
+		goto end;
 	}
 
 	// Get a handle to the service.
@@ -291,8 +303,8 @@ BOOL CheckSvc()
 
 		if (!InstallSvc(schSCManager))
 		{
-			CloseServiceHandle(schSCManager);
-			return FALSE;
+			bRet = FALSE;
+			goto end;
 		}
 	}
 	else
@@ -314,9 +326,9 @@ BOOL CheckSvc()
 				if (!lpConfig)
 				{
 					Log("Unable to allocate memory for LPQUERY_SERVICE_CONFIG");
-					CloseServiceHandle(schService);
-					CloseServiceHandle(schSCManager);
-					return FALSE;
+
+					bRet = FALSE;
+					goto end;
 				}
 
 				if (!QueryServiceConfigW(
@@ -326,26 +338,25 @@ BOOL CheckSvc()
 					&dwBytesNeeded))
 				{
 					Log("Unable to QueryServiceConfig");
-					LocalFree(lpConfig);
-					CloseServiceHandle(schService);
-					CloseServiceHandle(schSCManager);
-					return FALSE;
+
+					bRet = FALSE;
+					goto end;
 				}
 			}
 			else
 			{
 				Log("Unable to QueryServiceConfig bytes needed");
-				CloseServiceHandle(schService);
-				CloseServiceHandle(schSCManager);
-				return FALSE;
+
+				bRet = FALSE;
+				goto end;
 			}
 		}
 		else
 		{
 			Log("Unable to QueryServiceConfig bytes needed");
-			CloseServiceHandle(schService);
-			CloseServiceHandle(schSCManager);
-			return FALSE;
+
+			bRet = FALSE;
+			goto end;
 		}
 
 		wchar_t curPath[MAX_PATH];
@@ -353,8 +364,9 @@ BOOL CheckSvc()
 		if (!GetModuleFileNameExW(GetCurrentProcess(), NULL, curPath, MAX_PATH))
 		{
 			Log("Unable to GetModuleFileNameExA");
-			LocalFree(lpConfig);
-			return FALSE;
+
+			bRet = FALSE;
+			goto end;
 		}
 
 		if (wcscmp(curPath, lpConfig->lpBinaryPathName) != NULL)
@@ -367,20 +379,21 @@ BOOL CheckSvc()
 			if (lStatus != ERROR_SUCCESS)
 			{
 				Log("Unable to RegSetKeyValueW");
-				LocalFree(lpConfig);
-				return FALSE;
+
+				bRet = FALSE;
+				goto end;
 			}
 
 			Log("Executable path changed");
 		}
 		else
 			Log("Executable path correct");
-
-		LocalFree(lpConfig);
 	}
 
 	Log("Service ready for work");
 
+end:
+	LocalFree(lpConfig);
 	CloseServiceHandle(schService);
 	CloseServiceHandle(schSCManager);
 

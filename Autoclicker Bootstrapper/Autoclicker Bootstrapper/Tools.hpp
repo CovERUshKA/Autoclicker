@@ -16,13 +16,19 @@
 
 inline BOOL GetProcessBinaryType(DWORD PID, DWORD* buf)
 {
+	BOOL bRet;
+	DWORD dwBinaryType;
+	HANDLE handle;
+
 	*buf = 0;
 
-	HANDLE handle = OpenProcess(PROCESS_QUERY_INFORMATION, FALSE, PID);
+	handle = OpenProcess(PROCESS_QUERY_INFORMATION, FALSE, PID);
 	if (handle == NULL)
 	{
 		Log("Unable to open process");
-		return FALSE;
+
+		bRet = FALSE;
+		goto end;
 	}
 
 	char exepath[MAX_PATH];
@@ -30,31 +36,32 @@ inline BOOL GetProcessBinaryType(DWORD PID, DWORD* buf)
 
 	if (K32GetModuleFileNameExA(handle, NULL, exepath, MAX_PATH) == NULL)
 	{
-		CloseHandle(handle);
-		return FALSE;
+		bRet = FALSE;
+		goto end;
 	}
-
-	DWORD dwBinaryType = 0;
 
 	if (!GetBinaryTypeA(exepath, &dwBinaryType))
 	{
-		CloseHandle(handle);
-		return FALSE;
+		bRet = FALSE;
+		goto end;
 	}
 
 	if (dwBinaryType == SCS_64BIT_BINARY)
 	{
 		*buf = 64;
-		CloseHandle(handle);
-		return TRUE;
+		bRet = TRUE;
+		goto end;
 	}
 	else if (dwBinaryType == SCS_32BIT_BINARY)
 	{
 		*buf = 86;
-		CloseHandle(handle);
-		return TRUE;
+		bRet = TRUE;
+		goto end;
 	}
-	CloseHandle(handle);
+
+end:
+	if (handle) CloseHandle(handle);
+
 	return FALSE;
 }
 
