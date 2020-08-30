@@ -1,0 +1,183 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Исходные файлы">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;c++;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Файлы заголовков">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;h++;hm;inl;inc;ipp;xsd</Extensions>
+    </Filter>
+    <Filter Include="Файлы ресурсов">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="GUI">
+      <UniqueIdentifier>{f19161d6-44d6-4b6d-8a3a-df598aa25453}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="GUI\IO">
+      <UniqueIdentifier>{8ae5ead1-67a3-40a2-b007-5f41ec6b317f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="GUI\Elements">
+      <UniqueIdentifier>{79130409-8864-4cff-a382-10eeb9ee56f4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="GUI\Elements\Button">
+      <UniqueIdentifier>{718cfd8e-ed02-44ca-921b-9b2d6da79d6e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="GUI\Elements\TextEdit">
+      <UniqueIdentifier>{4d547f77-d388-4683-be94-947705ff4cf9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="GUI\Draw">
+      <UniqueIdentifier>{9e0fa02f-9ec1-45b9-a845-95f1e465fa14}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="GUI\Draw\d2d1">
+      <UniqueIdentifier>{b05b6899-054b-44e4-84b7-8dd3bb64e819}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="GUI\Elements\TextLabel">
+      <UniqueIdentifier>{745dc431-c50a-429d-a2cf-f312b30ca59c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="GUI\Elements\Table">
+      <UniqueIdentifier>{5c94f71f-bc2d-4313-9616-75938c6c3ee2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="GUI\Elements\DropList">
+      <UniqueIdentifier>{92c5760b-e4bf-4046-8138-5deaead3bb13}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="GUI\Elements\Element">
+      <UniqueIdentifier>{05729c58-6400-4de2-8726-8752ea8e3fe2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="GUI\Elements\Header">
+      <UniqueIdentifier>{96e1906a-264d-48f4-b863-0ceb77882208}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="GUI\Elements\Header\ScaleButton">
+      <UniqueIdentifier>{219ac7cd-f1f0-4b35-aaa5-c36eb95e1ec1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="GUI\Elements\Header\MinimizeButton">
+      <UniqueIdentifier>{8b647b5e-b5c8-4a20-a026-58f3b5e9f32d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="GUI\Elements\Header\CloseButton">
+      <UniqueIdentifier>{217d4cdb-f8ce-49c3-9cce-49fc859ee9fc}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="GUI\Elements\RecordButton">
+      <UniqueIdentifier>{b8da5014-bf71-4aa0-9437-b2d849724df3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Log">
+      <UniqueIdentifier>{a05b1b9f-1435-4d41-9cb0-c94fcf85cb3d}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="main.cpp">
+      <Filter>Исходные файлы</Filter>
+    </ClCompile>
+    <ClCompile Include="GUI\CoGUI.cpp">
+      <Filter>GUI</Filter>
+    </ClCompile>
+    <ClCompile Include="GUI\Elements\Button\Button.cpp">
+      <Filter>GUI\Elements\Button</Filter>
+    </ClCompile>
+    <ClCompile Include="GUI\Elements\TextEdit\TextEdit.cpp">
+      <Filter>GUI\Elements\TextEdit</Filter>
+    </ClCompile>
+    <ClCompile Include="GUI\IO\IO.cpp">
+      <Filter>GUI\IO</Filter>
+    </ClCompile>
+    <ClCompile Include="GUI\Draw\d2d1\D2D1_DRAW.cpp">
+      <Filter>GUI\Draw\d2d1</Filter>
+    </ClCompile>
+    <ClCompile Include="GUI\Elements\TextLabel\TextLabel.cpp">
+      <Filter>GUI\Elements\TextLabel</Filter>
+    </ClCompile>
+    <ClCompile Include="GUI\Elements\RecordButton\RecordButton.cpp">
+      <Filter>GUI\Elements\RecordButton</Filter>
+    </ClCompile>
+    <ClCompile Include="GUI\Elements\Table\Table.cpp">
+      <Filter>GUI\Elements\Table</Filter>
+    </ClCompile>
+    <ClCompile Include="GUI\Elements\DropList\DropList.cpp">
+      <Filter>GUI\Elements\DropList</Filter>
+    </ClCompile>
+    <ClCompile Include="GUI\Elements\Element\Element.cpp">
+      <Filter>GUI\Elements\Element</Filter>
+    </ClCompile>
+    <ClCompile Include="GUI\Elements\Header\CloseButton\CloseButton.cpp">
+      <Filter>GUI\Elements\Header\CloseButton</Filter>
+    </ClCompile>
+    <ClCompile Include="GUI\Elements\Header\MinimizeButton\MinimizeButton.cpp">
+      <Filter>GUI\Elements\Header\MinimizeButton</Filter>
+    </ClCompile>
+    <ClCompile Include="GUI\Elements\Header\ScaleButton\ScaleButton.cpp">
+      <Filter>GUI\Elements\Header\ScaleButton</Filter>
+    </ClCompile>
+    <ClCompile Include="Overlay.cpp">
+      <Filter>Исходные файлы</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Log.cpp">
+      <Filter>Log</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="GUI\Elements\Header\MinimizeButton\MinimizeButton.hpp">
+      <Filter>GUI\Elements\Header\MinimizeButton</Filter>
+    </ClInclude>
+    <ClInclude Include="GUI\Elements\Header\ScaleButton\ScaleButton.hpp">
+      <Filter>GUI\Elements\Header\ScaleButton</Filter>
+    </ClInclude>
+    <ClInclude Include="GUI\Elements\Table\Table.hpp">
+      <Filter>GUI\Elements\Table</Filter>
+    </ClInclude>
+    <ClInclude Include="GUI\Elements\ID.hpp">
+      <Filter>GUI\Elements</Filter>
+    </ClInclude>
+    <ClInclude Include="GUI\IO\IO.hpp">
+      <Filter>GUI\IO</Filter>
+    </ClInclude>
+    <ClInclude Include="GUI\CoGUI.hpp">
+      <Filter>GUI</Filter>
+    </ClInclude>
+    <ClInclude Include="GUI\Def.hpp">
+      <Filter>GUI</Filter>
+    </ClInclude>
+    <ClInclude Include="GUI\Elements.hpp">
+      <Filter>GUI</Filter>
+    </ClInclude>
+    <ClInclude Include="Header.hpp">
+      <Filter>Файлы заголовков</Filter>
+    </ClInclude>
+    <ClInclude Include="Tools.hpp">
+      <Filter>Файлы заголовков</Filter>
+    </ClInclude>
+    <ClInclude Include="GUI\Elements\Element\Element.hpp">
+      <Filter>GUI\Elements\Element</Filter>
+    </ClInclude>
+    <ClInclude Include="GUI\Elements\DropList\DropList.hpp">
+      <Filter>GUI\Elements\DropList</Filter>
+    </ClInclude>
+    <ClInclude Include="GUI\Elements\Button\Button.hpp">
+      <Filter>GUI\Elements\Button</Filter>
+    </ClInclude>
+    <ClInclude Include="GUI\Draw\d2d1\D2D1_DRAW.hpp">
+      <Filter>GUI\Draw\d2d1</Filter>
+    </ClInclude>
+    <ClInclude Include="GUI\Draw\Draw.hpp">
+      <Filter>GUI\Draw</Filter>
+    </ClInclude>
+    <ClInclude Include="GUI\Elements\TextLabel\TextLabel.hpp">
+      <Filter>GUI\Elements\TextLabel</Filter>
+    </ClInclude>
+    <ClInclude Include="GUI\Elements\TextEdit\TextEdit.hpp">
+      <Filter>GUI\Elements\TextEdit</Filter>
+    </ClInclude>
+    <ClInclude Include="GUI\Elements\RecordButton\RecordButton.hpp">
+      <Filter>GUI\Elements\RecordButton</Filter>
+    </ClInclude>
+    <ClInclude Include="GUI\Elements\Header\CloseButton\CloseButton.hpp">
+      <Filter>GUI\Elements\Header\CloseButton</Filter>
+    </ClInclude>
+    <ClInclude Include="Overlay.hpp">
+      <Filter>Файлы заголовков</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Log.hpp">
+      <Filter>Log</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>
