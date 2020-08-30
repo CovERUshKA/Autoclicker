@@ -8,8 +8,6 @@
 #include "../../Log.hpp"
 #include "Def.hpp"
 
-#define CustomMessageBox(title, msg) MessageBoxA(NULL, msg, "InJekòîp - " title, MB_OK | MB_TOPMOST);
-
 #define ReCa reinterpret_cast
 #define StCa static_cast
 
