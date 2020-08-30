@@ -30,3 +30,18 @@
 *.exe
 *.out
 *.app
+*.ipch
+*.db
+*.db-shm
+*.db-wal
+*.opendb
+Autoclicker Bootstrapper/.vs/Autoclicker Bootstrapper/v16/.suo
+*.lastbuildstate
+*.tlog
+*.recipe
+*.log
+*.idb
+*.pdb
+*.ilk
+*.iobj
+*.ipdb
