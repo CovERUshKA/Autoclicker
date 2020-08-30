@@ -1,6 +1,6 @@
 # SO RAW Autoclicker
 
-# I just want to show you how to create overlay and custom normal window
+# There's no autoclicker functions. It's just new features that be added in autoclicker in the future
 
 # FAQ
 
