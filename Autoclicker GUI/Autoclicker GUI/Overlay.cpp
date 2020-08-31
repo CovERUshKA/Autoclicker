@@ -571,7 +571,7 @@ BOOL Overlay::InitInstance(HINSTANCE hInstance, ATOM aClass, int nCmdShow)
 	overlayhWnd = pCreateWindowInBandEx(WS_EX_TOPMOST | WS_EX_NOACTIVATE | WS_EX_NOREDIRECTIONBITMAP | WS_EX_LAYERED | WS_EX_TRANSPARENT,
 		aClass,
 		oszTitle,
-		WS_POPUP | WS_SYSMENU | WS_MINIMIZEBOX | WS_MAXIMIZEBOX,
+		WS_POPUP,
 		0, 0, desktop.right, desktop.bottom,
 		NULL,
 		NULL,
