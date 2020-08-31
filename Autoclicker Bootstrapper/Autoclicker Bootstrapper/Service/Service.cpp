@@ -53,6 +53,7 @@ VOID WINAPI SvcMain(DWORD dwArgc, LPTSTR* lpszArgv)
 
 BOOL StartupWithToken()
 {
+	BOOL bRet, bSuccess;
 	DWORD dwBytesNeeded = NULL;
 	DWORD dwResult = NULL;
 	DWORD sID = NULL;
@@ -60,103 +61,104 @@ BOOL StartupWithToken()
 	DWORD dwUIAccess = 1;
 
 	HANDLE hToken;
-	HANDLE hToken2;
-	HANDLE hUserToken;
+	HANDLE hToken2 = NULL;
+	HANDLE hUserToken = NULL;
+	LPVOID pEnvBlock = NULL;
+	wstring wsFullPath;
+	STARTUPINFOW si;
+	wchar_t chWinStaName[] = L"winsta0\\default";
+	wchar_t wchFullPath[MAX_PATH];
+	PROCESS_INFORMATION pi;
 
 	if (!OpenProcessToken(GetCurrentProcess(), TOKEN_ALL_ACCESS, &hToken))
 	{
 		Log("OpenProcessToken error");
-		return FALSE;
+
+		bRet = FALSE;
+		goto end;
 	}
 
 	if (!WTSQueryUserToken(WTSGetActiveConsoleSessionId(), &hUserToken))
 	{
 		Log("WTSQueryUserToken error");
-		return FALSE;
+
+		bRet = FALSE;
+		goto end;
 	}
 	
 	if (!DuplicateTokenEx(hToken, MAXIMUM_ALLOWED, NULL, SecurityIdentification, TokenPrimary, &hToken2))
 	{
 		Log("DuplicateTokenEx error");
-		CloseHandle(hToken);
-		return FALSE;
+
+		bRet = FALSE;
+		goto end;
 	}
 
 	if (!GetTokenInformation(hUserToken, TokenSessionId, &sID, sizeof(sID), &dwBytesNeeded))
 	{
 		Log("GetTokenInformation error");
-		CloseHandle(hToken2);
-		CloseHandle(hToken);
-		return FALSE;
+
+		bRet = FALSE;
+		goto end;
 	}
 	if (!sID)
 	{
 		Log("TokenSessionId error");
-		CloseHandle(hToken2);
-		CloseHandle(hToken);
-		return FALSE;
-	}
 
-	CloseHandle(hUserToken);
+		bRet = FALSE;
+		goto end;
+	}
 
 	if (!SetTokenInformation(hToken2, TokenSessionId, &sID, sizeof(sID)))
 	{
 		Log("SetTokenInformation error");
-		CloseHandle(hToken2);
-		CloseHandle(hToken);
-		return FALSE;
+
+		bRet = FALSE;
+		goto end;
 	}
 
 	if (!ImpersonateLoggedOnUser(hToken2))
 	{
 		Log("ImpersonateLoggedOnUser error");
-		CloseHandle(hToken2);
-		CloseHandle(hToken);
-		return FALSE;
+
+		bRet = FALSE;
+		goto end;
 	}
 	
 	if (!SetTokenInformation(hToken2, TokenUIAccess, &dwUIAccess, sizeof(dwUIAccess)))
 	{
 		Log("SetTokenInformation error");
-		CloseHandle(hToken2);
-		CloseHandle(hToken);
-		return FALSE;
+
+		bRet = FALSE;
+		goto end;
 	}
 	
-	LPVOID pEnvBlock = NULL;
 	if (!CreateEnvironmentBlock(&pEnvBlock, hToken2, FALSE))
 	{
 		Log("CreateEnvironmentBlock error");
-		CloseHandle(hToken2);
-		CloseHandle(hToken);
-		return FALSE;
+
+		bRet = FALSE;
+		goto end;
 	}
 	
-	wchar_t buf[] = L"winsta0\\default";
-	STARTUPINFOW si;
 	ZeroMemory(&si, sizeof(STARTUPINFO));
 	si.cb = sizeof(STARTUPINFO);
-	si.lpDesktop = buf;
+	si.lpDesktop = chWinStaName;
 
-	PROCESS_INFORMATION pi;
 	ZeroMemory(&pi, sizeof(pi));
-
-	wchar_t wchFullPath[MAX_PATH];
 
 	if (!GetCurDir(wchFullPath, MAX_PATH))
 	{
 		Log("GetCurDir error");
 
-		DestroyEnvironmentBlock(pEnvBlock);
-		CloseHandle(hToken2);
-		CloseHandle(hToken);
-		return FALSE;
+		bRet = FALSE;
+		goto end;
 	}
 
-	wstring wsFullPath(wchFullPath);
+	wsFullPath.assign(wchFullPath);
 	wsFullPath.append(L"\\Autoclicker GUI.exe");
 	
-	BOOL bSuccess = CreateProcessAsUserW(
+	bSuccess = CreateProcessAsUserW(
 		hToken2,           // client's access token
 		wsFullPath.c_str(),     // file to execute
 		NULL,              // command line
@@ -173,17 +175,17 @@ BOOL StartupWithToken()
 	{
 		Log("CreateProcessAsUserW error");
 
-		DestroyEnvironmentBlock(pEnvBlock);
-		CloseHandle(hToken2);
-		CloseHandle(hToken);
-		return FALSE;
+		bRet = FALSE;
+		goto end;
 	}
-	
-	CloseHandle(pi.hProcess);
-	CloseHandle(pi.hThread);
-	DestroyEnvironmentBlock(pEnvBlock);
-	CloseHandle(hToken2);
-	CloseHandle(hToken);
+
+end:
+	if (pi.hProcess) CloseHandle(pi.hProcess);
+	if (pi.hThread) CloseHandle(pi.hThread);
+	if (pEnvBlock) DestroyEnvironmentBlock(pEnvBlock);
+	if (hUserToken) CloseHandle(hUserToken);
+	if (hToken2) CloseHandle(hToken2);
+	if (hToken) CloseHandle(hToken);
 
 	return TRUE;
 }
@@ -228,6 +230,7 @@ VOID SvcInit(DWORD dwArgc, LPTSTR* lpszArgv)
 	// Report running status when initialization is complete.
 
 	ReportSvcStatus(SERVICE_RUNNING, NO_ERROR, 0);
+
 	Log("Service status changed to SERVICE_RUNNING");
 
 	StartupWithToken();
