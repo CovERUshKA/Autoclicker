@@ -4,15 +4,17 @@ BOOL CheckSvc();
 
 BOOL StartupSvc()
 {
-	if (!CheckSvc())
-		return FALSE;
-
 	BOOL bRet;
 	SC_HANDLE schSCManager;
 	SC_HANDLE schService = 0;
 	SERVICE_STATUS_PROCESS ssStatus;
 	ULONGLONG dwStartTickCount;
 	DWORD dwBytesNeeded, dwWaitTime, dwOldCheckPoint;
+
+	bRet = FALSE;
+
+	if (!CheckSvc())
+		return bRet;
 
 	// Get a handle to the SCM database.
 
@@ -25,7 +27,6 @@ BOOL StartupSvc()
 	{
 		Log("OpenSCManager failed");
 
-		bRet = FALSE;
 		goto end;
 	}
 
@@ -42,7 +43,6 @@ BOOL StartupSvc()
 	{
 		Log("OpenService failed");
 
-		bRet = FALSE;
 		goto end;
 	}
 
@@ -58,7 +58,6 @@ BOOL StartupSvc()
 	{
 		Log("QueryServiceStatusEx failed");
 
-		bRet = FALSE;
 		goto end;
 	}
 
@@ -67,7 +66,8 @@ BOOL StartupSvc()
 
 	if (ssStatus.dwCurrentState != SERVICE_STOPPED && ssStatus.dwCurrentState != SERVICE_STOP_PENDING)
 	{
-		bRet = FALSE;
+		Log("Service already running");
+
 		goto end;
 	}
 
@@ -104,7 +104,6 @@ BOOL StartupSvc()
 		{
 			Log("QueryServiceStatusEx failed");
 
-			bRet = FALSE;
 			goto end;
 		}
 
@@ -121,7 +120,6 @@ BOOL StartupSvc()
 			{
 				Log("Timeout waiting for service to stop");
 
-				bRet = FALSE;
 				goto end;
 			}
 		}
@@ -138,15 +136,15 @@ BOOL StartupSvc()
 	{
 		Log("StartService failed");
 
-		bRet = FALSE;
 		goto end;
 	}
 
+	bRet = TRUE;
 end:
 	if (schService) CloseServiceHandle(schService);
 	if (schSCManager) CloseServiceHandle(schService);
 
-	return TRUE;
+	return bRet;
 }
 
 BOOL InstallSvc(SC_HANDLE schSCManager)
@@ -155,13 +153,14 @@ BOOL InstallSvc(SC_HANDLE schSCManager)
 	SC_HANDLE schService = 0;
 	TCHAR szPath[MAX_PATH];
 
+	bRet = FALSE;
+
 	Log("Installing service...");
 
 	if (!GetModuleFileNameW(NULL, szPath, MAX_PATH))
 	{
 		Log("GetModuleFileName failed");
 
-		bRet = FALSE;
 		goto end;
 	}
 
@@ -186,17 +185,17 @@ BOOL InstallSvc(SC_HANDLE schSCManager)
 	{
 		Log("CreateService failed");
 
-		bRet = FALSE;
 		goto end;
 	}
 
 	Log("Service installed");
 
+	bRet = TRUE;
 end:
 	if (schService) CloseServiceHandle(schService);
 	if (schSCManager) CloseServiceHandle(schSCManager);
 
-	return TRUE;
+	return bRet;
 }
 
 BOOL CheckSvc()
@@ -207,6 +206,8 @@ BOOL CheckSvc()
 	DWORD dwError, dwBytesNeeded;
 	LPQUERY_SERVICE_CONFIG lpConfig = 0;
 	LSTATUS lStatus;
+
+	bRet = FALSE;
 
 	Log("Service checking...");
 
@@ -221,7 +222,6 @@ BOOL CheckSvc()
 	{
 		Log("OpenSCManager failed");
 
-		bRet = FALSE;
 		goto end;
 	}
 
@@ -237,10 +237,7 @@ BOOL CheckSvc()
 		Log("Service not exists");
 
 		if (!InstallSvc(schSCManager))
-		{
-			bRet = FALSE;
 			goto end;
-		}
 	}
 	else
 	{
@@ -262,7 +259,6 @@ BOOL CheckSvc()
 				{
 					Log("Unable to allocate memory for LPQUERY_SERVICE_CONFIG");
 
-					bRet = FALSE;
 					goto end;
 				}
 
@@ -274,7 +270,6 @@ BOOL CheckSvc()
 				{
 					Log("Unable to QueryServiceConfig");
 
-					bRet = FALSE;
 					goto end;
 				}
 			}
@@ -282,7 +277,6 @@ BOOL CheckSvc()
 			{
 				Log("Unable to QueryServiceConfig bytes needed");
 
-				bRet = FALSE;
 				goto end;
 			}
 		}
@@ -290,7 +284,6 @@ BOOL CheckSvc()
 		{
 			Log("Unable to QueryServiceConfig bytes needed");
 
-			bRet = FALSE;
 			goto end;
 		}
 
@@ -300,7 +293,6 @@ BOOL CheckSvc()
 		{
 			Log("Unable to GetModuleFileNameExA");
 
-			bRet = FALSE;
 			goto end;
 		}
 
@@ -315,7 +307,6 @@ BOOL CheckSvc()
 			{
 				Log("Unable to RegSetKeyValueW");
 
-				bRet = FALSE;
 				goto end;
 			}
 
@@ -327,10 +318,11 @@ BOOL CheckSvc()
 
 	Log("Service ready for work");
 
+	bRet = TRUE;
 end:
 	LocalFree(lpConfig);
-	CloseServiceHandle(schService);
-	CloseServiceHandle(schSCManager);
+	if (schService) CloseServiceHandle(schService);
+	if (schSCManager) CloseServiceHandle(schSCManager);
 
 	return TRUE;
 }

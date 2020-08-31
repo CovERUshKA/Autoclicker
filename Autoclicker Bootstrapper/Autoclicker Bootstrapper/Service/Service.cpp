@@ -70,11 +70,12 @@ BOOL StartupWithToken()
 	wchar_t wchFullPath[MAX_PATH];
 	PROCESS_INFORMATION pi;
 
+	bRet = FALSE;
+
 	if (!OpenProcessToken(GetCurrentProcess(), TOKEN_ALL_ACCESS, &hToken))
 	{
 		Log("OpenProcessToken error");
 
-		bRet = FALSE;
 		goto end;
 	}
 
@@ -82,7 +83,6 @@ BOOL StartupWithToken()
 	{
 		Log("WTSQueryUserToken error");
 
-		bRet = FALSE;
 		goto end;
 	}
 	
@@ -90,7 +90,6 @@ BOOL StartupWithToken()
 	{
 		Log("DuplicateTokenEx error");
 
-		bRet = FALSE;
 		goto end;
 	}
 
@@ -98,14 +97,12 @@ BOOL StartupWithToken()
 	{
 		Log("GetTokenInformation error");
 
-		bRet = FALSE;
 		goto end;
 	}
 	if (!sID)
 	{
 		Log("TokenSessionId error");
 
-		bRet = FALSE;
 		goto end;
 	}
 
@@ -113,15 +110,6 @@ BOOL StartupWithToken()
 	{
 		Log("SetTokenInformation error");
 
-		bRet = FALSE;
-		goto end;
-	}
-
-	if (!ImpersonateLoggedOnUser(hToken2))
-	{
-		Log("ImpersonateLoggedOnUser error");
-
-		bRet = FALSE;
 		goto end;
 	}
 	
@@ -129,7 +117,6 @@ BOOL StartupWithToken()
 	{
 		Log("SetTokenInformation error");
 
-		bRet = FALSE;
 		goto end;
 	}
 	
@@ -137,7 +124,6 @@ BOOL StartupWithToken()
 	{
 		Log("CreateEnvironmentBlock error");
 
-		bRet = FALSE;
 		goto end;
 	}
 	
@@ -151,7 +137,6 @@ BOOL StartupWithToken()
 	{
 		Log("GetCurDir error");
 
-		bRet = FALSE;
 		goto end;
 	}
 
@@ -175,9 +160,10 @@ BOOL StartupWithToken()
 	{
 		Log("CreateProcessAsUserW error");
 
-		bRet = FALSE;
 		goto end;
 	}
+
+	bRet = TRUE;
 
 end:
 	if (pi.hProcess) CloseHandle(pi.hProcess);
@@ -187,7 +173,7 @@ end:
 	if (hToken2) CloseHandle(hToken2);
 	if (hToken) CloseHandle(hToken);
 
-	return TRUE;
+	return bRet;
 }
 
 //
