@@ -8,7 +8,7 @@
 1) Compile 2 projects<br/>
 !["compile_settings"](images/compile_settings.png)<br/>
 2) Place compiled exe files in one folder<br/>
-3) To see the Overlay window open bootstrapper and press Alt + X or if you want to see normal window open GUI
+3) To see the Overlay window destroy normal window and open bootstrapper and press Alt + X or if you want to see normal window destroy the Overlay window and open GUI
 
 ## How to destroy Overlay?
 1) Open Task Manager<br/>
