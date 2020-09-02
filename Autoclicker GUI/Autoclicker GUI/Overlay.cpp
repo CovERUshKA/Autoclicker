@@ -85,7 +85,7 @@ HRESULT Overlay::Redraw()
 	HRESULT hr = S_OK;
 
 	if (!activate)
-		return 0;
+		return hr;
 
 	POINT offset = {};
 	hr = m_surface->BeginDraw(nullptr,
@@ -258,9 +258,7 @@ HRESULT Initialize()
 
 end:
 	if (FAILED(hr))
-	{
 		CleanupDevices();
-	}
 
 	return hr;
 }
@@ -568,7 +566,7 @@ BOOL Overlay::InitInstance(HINSTANCE hInstance, ATOM aClass, int nCmdShow)
 
 	Log("CreateWindowInBandEx founded");
 
-	overlayhWnd = pCreateWindowInBandEx(WS_EX_TOPMOST | WS_EX_NOACTIVATE | WS_EX_NOREDIRECTIONBITMAP | WS_EX_LAYERED | WS_EX_TRANSPARENT,
+	overlayhWnd = pCreateWindowInBandEx(WS_EX_NOACTIVATE | WS_EX_NOREDIRECTIONBITMAP | WS_EX_LAYERED | WS_EX_TRANSPARENT,
 		aClass,
 		oszTitle,
 		WS_POPUP,
