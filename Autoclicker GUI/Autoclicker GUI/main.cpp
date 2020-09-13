@@ -248,8 +248,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 		return Overlay::Work();
 	}
 
-	if (FindWindowW(szWindowClass, NULL))
-		return FALSE;
+	//if (FindWindowW(szWindowClass, NULL))
+		//return FALSE;
 
 	if (!MyRegisterClass(hInstance))
 	{
@@ -368,7 +368,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 	hInst = hInstance; // Store instance handle in our global variable
 
 	mainhWnd = CreateWindowW(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW,
-		300, 300, 500, 500, nullptr, nullptr, hInstance, nullptr);
+		CW_USEDEFAULT, 0, 500, 500, nullptr, nullptr, hInstance, nullptr);
 
 	if (!mainhWnd)
 	{
@@ -497,7 +497,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		if (rw.header.dwType == RIM_TYPEMOUSE)
 		{
 			curLast.x = rw.data.mouse.lLastX;
-			curLast.x = rw.data.mouse.lLastY;
+			curLast.y = rw.data.mouse.lLastY;
 		}
 
 		if (rw.header.dwType == RIM_TYPEKEYBOARD)

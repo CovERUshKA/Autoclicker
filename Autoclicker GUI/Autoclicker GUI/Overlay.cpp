@@ -63,6 +63,7 @@ HHOOK hookLowLvlMouse;
 
 POINT curPos = { 0, 0 };
 POINT retCurPos = { 0, 0 };
+POINT ocurLast;
 
 BOOL CleanupDevices();
 
@@ -83,6 +84,7 @@ char buf[MAX_PATH];
 HRESULT Overlay::Redraw()
 {
 	HRESULT hr = S_OK;
+	wstring buf;
 
 	if (!activate)
 		return hr;
@@ -113,6 +115,47 @@ HRESULT Overlay::Redraw()
 	dc->Clear();
 
 	COGUI::Render();
+
+	buf.clear();
+	buf.append(to_wstring((DWORD)GetActiveWindow()).c_str());
+	buf.append(L" ");
+	buf.append(to_wstring((DWORD)GetForegroundWindow()).c_str());
+	buf.append(L" ");
+	buf.append(to_wstring((DWORD)GetFocus()).c_str());
+	buf.append(L" ");
+	buf.append(to_wstring((DWORD)GetCapture()).c_str());
+	buf.append(L" ");
+	buf.append(to_wstring((DWORD)GetTopWindow(NULL)).c_str());
+	buf.append(L" ");
+	buf.append(to_wstring(io.mousePos.x).c_str());
+	buf.append(L" ");
+	buf.append(to_wstring(io.mousePos.y).c_str());
+
+	buf.append(L" ");
+	buf.append(to_wstring(ocurLast.x).c_str());
+	buf.append(L" ");
+	buf.append(to_wstring(ocurLast.y).c_str());
+
+	POINT pt;
+	if (!GetCursorPos(&pt))
+	{
+		Log("Unable to GetCursorPos");
+	}
+
+	buf.append(L" ");
+	buf.append(to_wstring(pt.x).c_str());
+	buf.append(L" ");
+	buf.append(to_wstring(pt.y).c_str());
+
+	TextInformation textInfo;
+
+	textInfo.clip = true;
+	textInfo.color = COGUI::COGUI_COLOR(255, 255, 255);
+	textInfo.multiline = false;
+	textInfo.xAlign = 0;
+	textInfo.yAlign = 0;
+
+	draw.String({ 50, 50 }, textInfo, buf.c_str(), buf.length(), L"Consolas", 13);
 
 	hr = m_surface->EndDraw();
 	if (FAILED(hr))
@@ -408,14 +451,19 @@ BOOL Overlay::Init(HINSTANCE hInstance)
 
 	Log("Timer initialized");
 	
-	RAWINPUTDEVICE Rid[1];
+	RAWINPUTDEVICE Rid[2];
 
 	Rid[0].usUsagePage = HID_USAGE_PAGE_GENERIC;
 	Rid[0].usUsage = HID_USAGE_GENERIC_KEYBOARD;
 	Rid[0].dwFlags = RIDEV_INPUTSINK;
 	Rid[0].hwndTarget = overlayhWnd;
 
-	if (RegisterRawInputDevices(Rid, 1, sizeof(Rid[0])) == FALSE)
+	Rid[1].usUsagePage = HID_USAGE_PAGE_GENERIC;
+	Rid[1].usUsage = HID_USAGE_GENERIC_MOUSE;
+	Rid[1].dwFlags = RIDEV_INPUTSINK;
+	Rid[1].hwndTarget = overlayhWnd;
+
+	if (RegisterRawInputDevices(Rid, 2, sizeof(Rid[0])) == FALSE)
 	{
 		Log("Unable to register raw input devices.");
 		return FALSE;
@@ -469,6 +517,8 @@ BOOL Overlay::Toggle()
 		m_visual->SetClip(rectf);
 		
 		SetWindowLongPtrW(overlayhWnd, GWL_EXSTYLE, GetWindowLongPtrW(overlayhWnd, GWL_EXSTYLE) & ~WS_EX_TRANSPARENT);
+
+		SetFocus(overlayhWnd);
 	}
 	else
 	{
@@ -722,7 +772,7 @@ LRESULT CALLBACK Overlay::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM
 		if (!GetRawInputData((HRAWINPUT)lParam, RID_INPUT, &rw, &sz, sizeof(RAWINPUTHEADER)))
 			break;
 
-		if (rw.header.dwType == RIM_TYPEMOUSE)
+		/*if (rw.header.dwType == RIM_TYPEMOUSE)
 		{
 			switch (rw.data.mouse.usButtonFlags)
 			{
@@ -732,6 +782,12 @@ LRESULT CALLBACK Overlay::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM
 			default:
 				break;
 			}
+		}*/
+
+		if (rw.header.dwType == RIM_TYPEMOUSE)
+		{
+			ocurLast.x = rw.data.mouse.lLastX;
+			ocurLast.y = rw.data.mouse.lLastY;
 		}
 		
 		if (rw.header.dwType == RIM_TYPEKEYBOARD)

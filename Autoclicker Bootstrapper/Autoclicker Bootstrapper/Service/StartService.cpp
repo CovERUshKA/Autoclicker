@@ -216,7 +216,7 @@ BOOL CheckSvc()
 	schSCManager = OpenSCManager(
 		NULL,                    // local computer
 		NULL,                    // ServicesActive database 
-		STANDARD_RIGHTS_EXECUTE);  // full access rights 
+		SC_MANAGER_ALL_ACCESS);  // full access rights 
 
 	if (!schSCManager)
 	{
