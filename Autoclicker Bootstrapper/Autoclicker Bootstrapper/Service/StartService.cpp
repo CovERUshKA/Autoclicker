@@ -1,6 +1,6 @@
 #include "StartService.hpp"
 
-BOOL CheckSvc();
+BOOL CheckSvc(SC_HANDLE schSCManager), InstallSvc(SC_HANDLE schSCManager);
 
 BOOL StartupSvc()
 {
@@ -12,9 +12,6 @@ BOOL StartupSvc()
 	DWORD dwBytesNeeded, dwWaitTime, dwOldCheckPoint;
 
 	bRet = FALSE;
-
-	if (!CheckSvc())
-		return bRet;
 
 	// Get a handle to the SCM database.
 
@@ -41,12 +38,30 @@ BOOL StartupSvc()
 
 	if (!schService)
 	{
-		Log("OpenService failed");
+		DWORD lastError = GetLastError();
 
-		goto end;
+		switch (lastError)
+		{
+		case ERROR_SERVICE_DOES_NOT_EXIST:
+		{
+			Log("Service not exists");
+
+			if (!InstallSvc(schSCManager))
+				goto end;
+		}
+			break;
+		default:
+			Log("OpenService failed");
+			break;
+		}
 	}
+	else
+	{
+		Log("Service opened");
 
-	Log("Service opened");
+		if (!CheckSvc(schService))
+			goto end;
+	}
 
 	// Check the status in case the service is not stopped. 
 	if (!QueryServiceStatusEx(
@@ -198,84 +213,46 @@ end:
 	return bRet;
 }
 
-BOOL CheckSvc()
+BOOL CheckSvc(SC_HANDLE schService)
 {
 	BOOL bRet;
-	SC_HANDLE schSCManager;
-	SC_HANDLE schService = 0;
 	DWORD dwError, dwBytesNeeded;
 	LPQUERY_SERVICE_CONFIG lpConfig = 0;
 	LSTATUS lStatus;
 
 	bRet = FALSE;
 
-	Log("Service checking...");
-
-	// Get a handle to the SCM database. 
-
-	schSCManager = OpenSCManager(
-		NULL,                    // local computer
-		NULL,                    // ServicesActive database 
-		SC_MANAGER_ALL_ACCESS);  // full access rights 
-
-	if (!schSCManager)
-	{
-		Log("OpenSCManager failed");
-
+	if (!schService)
 		goto end;
-	}
 
 	// Get a handle to the service.
 
-	schService = OpenServiceW(
-		schSCManager,          // SCM database
-		SERVICE_INSTALL_NAME,  // name of service
-		SERVICE_ALL_ACCESS);   // need query config access
+	Log("Service executable path checking...");
 
-	if (!schService)
+	if (!QueryServiceConfigW(
+		schService,
+		NULL,
+		NULL,
+		&dwBytesNeeded))
 	{
-		Log("Service not exists");
-
-		if (!InstallSvc(schSCManager))
-			goto end;
-	}
-	else
-	{
-		Log("Service exists");
-
-		Log("Executable path checking...");
-
-		if (!QueryServiceConfigW(
-			schService,
-			NULL,
-			NULL,
-			&dwBytesNeeded))
+		dwError = GetLastError();
+		if (dwError == ERROR_INSUFFICIENT_BUFFER)
 		{
-			dwError = GetLastError();
-			if (dwError == ERROR_INSUFFICIENT_BUFFER)
+			lpConfig = (LPQUERY_SERVICE_CONFIG)LocalAlloc(LMEM_FIXED, dwBytesNeeded);
+			if (!lpConfig)
 			{
-				lpConfig = (LPQUERY_SERVICE_CONFIG)LocalAlloc(LMEM_FIXED, dwBytesNeeded);
-				if (!lpConfig)
-				{
-					Log("Unable to allocate memory for LPQUERY_SERVICE_CONFIG");
+				Log("Unable to allocate memory for LPQUERY_SERVICE_CONFIG");
 
-					goto end;
-				}
-
-				if (!QueryServiceConfigW(
-					schService,
-					lpConfig,
-					dwBytesNeeded,
-					&dwBytesNeeded))
-				{
-					Log("Unable to QueryServiceConfig");
-
-					goto end;
-				}
+				goto end;
 			}
-			else
+
+			if (!QueryServiceConfigW(
+				schService,
+				lpConfig,
+				dwBytesNeeded,
+				&dwBytesNeeded))
 			{
-				Log("Unable to QueryServiceConfig bytes needed");
+				Log("Unable to QueryServiceConfig");
 
 				goto end;
 			}
@@ -286,43 +263,45 @@ BOOL CheckSvc()
 
 			goto end;
 		}
+	}
+	else
+	{
+		Log("Unable to QueryServiceConfig bytes needed");
 
-		wchar_t curPath[MAX_PATH];
+		goto end;
+	}
 
-		if (!GetModuleFileNameExW(GetCurrentProcess(), NULL, curPath, MAX_PATH))
+	wchar_t curPath[MAX_PATH];
+
+	if (!GetModuleFileNameExW(GetCurrentProcess(), NULL, curPath, MAX_PATH))
+	{
+		Log("Unable to GetModuleFileNameExW");
+
+		goto end;
+	}
+
+	if (wcscmp(curPath, lpConfig->lpBinaryPathName) != NULL)
+	{
+		Log("Executable path incorrect");
+
+		Log("Executable path changing...");
+
+		lStatus = RegSetKeyValueW(HKEY_LOCAL_MACHINE, L"SYSTEM\\CurrentControlSet\\Services\\AutoclickerBootstrapper", L"ImagePath", REG_MULTI_SZ, curPath, sizeof(curPath));
+		if (lStatus != ERROR_SUCCESS)
 		{
-			Log("Unable to GetModuleFileNameExA");
+			Log("Unable to RegSetKeyValueW");
 
 			goto end;
 		}
 
-		if (wcscmp(curPath, lpConfig->lpBinaryPathName) != NULL)
-		{
-			Log("Executable path incorrect");
-
-			Log("Executable path changing...");
-
-			lStatus = RegSetKeyValueW(HKEY_LOCAL_MACHINE, L"SYSTEM\\CurrentControlSet\\Services\\AutoclickerBootstrapper", L"ImagePath", REG_MULTI_SZ, curPath, sizeof(curPath));
-			if (lStatus != ERROR_SUCCESS)
-			{
-				Log("Unable to RegSetKeyValueW");
-
-				goto end;
-			}
-
-			Log("Executable path changed");
-		}
-		else
-			Log("Executable path correct");
+		Log("Executable path changed");
 	}
-
-	Log("Service ready for work");
+	else
+		Log("Executable path correct");
 
 	bRet = TRUE;
 end:
 	LocalFree(lpConfig);
-	if (schService) CloseServiceHandle(schService);
-	if (schSCManager) CloseServiceHandle(schSCManager);
 
-	return TRUE;
+	return bRet;
 }
