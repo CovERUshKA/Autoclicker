@@ -13,149 +13,131 @@ BOOL StartupSvc()
 
 	bRet = FALSE;
 
-	// Get a handle to the SCM database.
-
-	schSCManager = OpenSCManager(
-		NULL,                    // local computer
-		NULL,                    // servicesActive database 
-		SC_MANAGER_ALL_ACCESS);  // full access rights 
-
-	if (!schSCManager)
+	try
 	{
-		Log("OpenSCManager failed");
+		// Get a handle to the SCM database.
+		schSCManager = OpenSCManager(
+			NULL,                    // local computer
+			NULL,                    // servicesActive database 
+			SC_MANAGER_ALL_ACCESS);  // full access rights 
 
-		goto end;
-	}
+		if (!schSCManager)
+			throw exception("OpenSCManager failed");
 
-	Log("SCManager opened");
+		Log("SCManager opened");
 
-	// Get a handle to the service.
+		// Get a handle to the service.
 
-	schService = OpenService(
-		schSCManager,         // SCM database 
-		SERVICE_INSTALL_NAME, // name of service 
-		SERVICE_ALL_ACCESS);  // full access 
+		schService = OpenService(
+			schSCManager,         // SCM database 
+			SERVICE_INSTALL_NAME, // name of service 
+			SERVICE_ALL_ACCESS);  // full access 
 
-	if (!schService)
-	{
-		DWORD lastError = GetLastError();
-
-		switch (lastError)
+		if (!schService)
 		{
-		case ERROR_SERVICE_DOES_NOT_EXIST:
-		{
-			Log("Service not exists");
+			DWORD lastError = GetLastError();
 
-			if (!InstallSvc(schSCManager))
-				goto end;
-		}
+			switch (lastError)
+			{
+			case ERROR_SERVICE_DOES_NOT_EXIST:
+			{
+				Log("Service not exists");
+				
+				if (!InstallSvc(schSCManager))
+					throw NULL; // Here i just need to get out of try{}, please help me how to improve this
+			}
 			break;
-		default:
-			Log("OpenService failed");
-			break;
-		}
-	}
-	else
-	{
-		Log("Service opened");
-
-		if (!CheckSvc(schService))
-			goto end;
-	}
-
-	// Check the status in case the service is not stopped. 
-	if (!QueryServiceStatusEx(
-		schService,                       // handle to service 
-		SC_STATUS_PROCESS_INFO,           // information level
-		(LPBYTE)&ssStatus,                // address of structure
-		sizeof(SERVICE_STATUS_PROCESS),   // size of structure
-		&dwBytesNeeded))                  // size needed if buffer is too small
-	{
-		Log("QueryServiceStatusEx failed");
-
-		goto end;
-	}
-
-	// Check if the service is already running. It would be possible 
-	// to stop the service here, but for simplicity this example just returns. 
-
-	if (ssStatus.dwCurrentState != SERVICE_STOPPED && ssStatus.dwCurrentState != SERVICE_STOP_PENDING)
-	{
-		Log("Service already running");
-
-		goto end;
-	}
-
-	// Save the tick count and initial checkpoint.
-
-	dwStartTickCount = GetTickCount64();
-	dwOldCheckPoint = ssStatus.dwCheckPoint;
-
-	// Wait for the service to stop before attempting to start it.
-
-	while (ssStatus.dwCurrentState == SERVICE_STOP_PENDING)
-	{
-		// Do not wait longer than the wait hint. A good interval is 
-		// one-tenth of the wait hint but not less than 1 second  
-		// and not more than 10 seconds. 
-
-		dwWaitTime = ssStatus.dwWaitHint / 10;
-
-		if (dwWaitTime < 1000)
-			dwWaitTime = 1000;
-		else if (dwWaitTime > 10000)
-			dwWaitTime = 10000;
-
-		Sleep(dwWaitTime);
-
-		// Check the status until the service is no longer stop pending. 
-
-		if (!QueryServiceStatusEx(
-			schService,                     // handle to service 
-			SC_STATUS_PROCESS_INFO,         // information level
-			(LPBYTE)&ssStatus,             // address of structure
-			sizeof(SERVICE_STATUS_PROCESS), // size of structure
-			&dwBytesNeeded))              // size needed if buffer is too small
-		{
-			Log("QueryServiceStatusEx failed");
-
-			goto end;
-		}
-
-		if (ssStatus.dwCheckPoint > dwOldCheckPoint)
-		{
-			// Continue to wait and check.
-
-			dwStartTickCount = GetTickCount64();
-			dwOldCheckPoint = ssStatus.dwCheckPoint;
+			default:
+				throw exception("OpenService failed");
+			}
 		}
 		else
 		{
-			if (GetTickCount64() - dwStartTickCount > ssStatus.dwWaitHint)
-			{
-				Log("Timeout waiting for service to stop");
+			Log("Service opened");
 
-				goto end;
+			if (!CheckSvc(schService))
+				throw NULL; // Here i just need to get out of try{}, please help me how to improve this
+		}
+
+		// Check the status in case the service is not stopped. 
+		if (!QueryServiceStatusEx(
+			schService,                       // handle to service 
+			SC_STATUS_PROCESS_INFO,           // information level
+			(LPBYTE)&ssStatus,                // address of structure
+			sizeof(SERVICE_STATUS_PROCESS),   // size of structure
+			&dwBytesNeeded))                  // size needed if buffer is too small
+			throw exception("QueryServiceStatusEx failed");
+
+		// Check if the service is already running. It would be possible 
+		// to stop the service here, but for simplicity this example just returns. 
+
+		if (ssStatus.dwCurrentState != SERVICE_STOPPED && ssStatus.dwCurrentState != SERVICE_STOP_PENDING)
+			throw exception("Service already running");
+
+		// Save the tick count and initial checkpoint.
+
+		dwStartTickCount = GetTickCount64();
+		dwOldCheckPoint = ssStatus.dwCheckPoint;
+
+		// Wait for the service to stop before attempting to start it.
+
+		while (ssStatus.dwCurrentState == SERVICE_STOP_PENDING)
+		{
+			// Do not wait longer than the wait hint. A good interval is 
+			// one-tenth of the wait hint but not less than 1 second  
+			// and not more than 10 seconds. 
+
+			dwWaitTime = ssStatus.dwWaitHint / 10;
+
+			if (dwWaitTime < 1000)
+				dwWaitTime = 1000;
+			else if (dwWaitTime > 10000)
+				dwWaitTime = 10000;
+
+			Sleep(dwWaitTime);
+
+			// Check the status until the service is no longer stop pending. 
+
+			if (!QueryServiceStatusEx(
+				schService,                     // handle to service 
+				SC_STATUS_PROCESS_INFO,         // information level
+				(LPBYTE)&ssStatus,             // address of structure
+				sizeof(SERVICE_STATUS_PROCESS), // size of structure
+				&dwBytesNeeded))              // size needed if buffer is too small
+				throw exception("QueryServiceStatusEx failed");
+
+			if (ssStatus.dwCheckPoint > dwOldCheckPoint)
+			{
+				// Continue to wait and check.
+
+				dwStartTickCount = GetTickCount64();
+				dwOldCheckPoint = ssStatus.dwCheckPoint;
+			}
+			else
+			{
+				if (GetTickCount64() - dwStartTickCount > ssStatus.dwWaitHint)
+					throw exception("Timeout waiting for service to stop");
 			}
 		}
+
+		Log("Starting service...");
+
+		// Attempt to start the service.
+
+		if (!StartService(
+			schService,  // handle to service 
+			0,           // number of arguments 
+			NULL))      // no arguments 
+			throw exception("StartService failed");
+
+		bRet = TRUE;
 	}
-
-	Log("Starting service...");
-
-	// Attempt to start the service.
-
-	if (!StartService(
-		schService,  // handle to service 
-		0,           // number of arguments 
-		NULL))      // no arguments 
+	catch (const std::exception& e)
 	{
-		Log("StartService failed");
-
-		goto end;
+		Log(e.what());
 	}
+	catch (...) {}
 
-	bRet = TRUE;
-end:
 	if (schService) CloseServiceHandle(schService);
 	if (schSCManager) CloseServiceHandle(schService);
 
@@ -169,44 +151,45 @@ BOOL InstallSvc(SC_HANDLE schSCManager)
 	TCHAR szPath[MAX_PATH];
 
 	bRet = FALSE;
-
-	Log("Installing service...");
-
-	if (!GetModuleFileNameW(NULL, szPath, MAX_PATH))
+	
+	try
 	{
-		Log("GetModuleFileName failed");
+		Log("Installing service...");
 
-		goto end;
+		// Get full path of the current process and put it into the szPath variable
+		if (!GetModuleFileNameW(NULL, szPath, MAX_PATH))
+			throw exception("GetModuleFileName failed");
+
+		// Create the service
+		schService = CreateServiceW(
+			schSCManager,              // SCM database
+			SERVICE_INSTALL_NAME,                   // name of service
+			SERVICE_DISPLAY_NAME,                   // service name to display
+			SERVICE_ALL_ACCESS,        // desired access
+			SERVICE_WIN32_OWN_PROCESS, // service type
+			SERVICE_DEMAND_START,      // start type
+			SERVICE_ERROR_NORMAL,      // error control type
+			szPath,                    // path to service's binary
+			NULL,                      // no load ordering group
+			NULL,                      // no tag identifier
+			NULL,                      // no dependencies
+			NULL,                      // LocalSystem account
+			NULL);                     // no password
+
+		if (schService == NULL)
+			throw exception("CreateService failed");
+
+		Log("Service installed");
+
+		bRet = TRUE;
+	}
+	catch (const std::exception& e)
+	{
+		// Log the exception text
+		Log(e.what());
 	}
 
-	// Create the service
-
-	schService = CreateServiceW(
-		schSCManager,              // SCM database
-		SERVICE_INSTALL_NAME,                   // name of service
-		SERVICE_DISPLAY_NAME,                   // service name to display
-		SERVICE_ALL_ACCESS,        // desired access
-		SERVICE_WIN32_OWN_PROCESS, // service type
-		SERVICE_DEMAND_START,      // start type
-		SERVICE_ERROR_NORMAL,      // error control type
-		szPath,                    // path to service's binary
-		NULL,                      // no load ordering group
-		NULL,                      // no tag identifier
-		NULL,                      // no dependencies
-		NULL,                      // LocalSystem account
-		NULL);                     // no password
-
-	if (schService == NULL)
-	{
-		Log("CreateService failed");
-
-		goto end;
-	}
-
-	Log("Service installed");
-
-	bRet = TRUE;
-end:
+	// Close all handles
 	if (schService) CloseServiceHandle(schService);
 	if (schSCManager) CloseServiceHandle(schSCManager);
 
@@ -220,87 +203,69 @@ BOOL CheckSvc(SC_HANDLE schService)
 	LPQUERY_SERVICE_CONFIG lpConfig = 0;
 	LSTATUS lStatus;
 
+	wchar_t curPath[MAX_PATH];
+	ZeroMemory(curPath, sizeof(curPath));
+
 	bRet = FALSE;
 
-	if (!schService)
-		goto end;
-
-	// Get a handle to the service.
-
-	Log("Service executable path checking...");
-
-	if (!QueryServiceConfigW(
-		schService,
-		NULL,
-		NULL,
-		&dwBytesNeeded))
+	try
 	{
-		dwError = GetLastError();
-		if (dwError == ERROR_INSUFFICIENT_BUFFER)
+		if (!schService)
+			throw exception("Service handle is empty");
+
+		Log("Service executable path checking...");
+
+		if (!QueryServiceConfigW(
+			schService,
+			NULL,
+			NULL,
+			&dwBytesNeeded))
 		{
-			lpConfig = (LPQUERY_SERVICE_CONFIG)LocalAlloc(LMEM_FIXED, dwBytesNeeded);
-			if (!lpConfig)
+			dwError = GetLastError();
+			if (dwError == ERROR_INSUFFICIENT_BUFFER)
 			{
-				Log("Unable to allocate memory for LPQUERY_SERVICE_CONFIG");
+				lpConfig = (LPQUERY_SERVICE_CONFIG)LocalAlloc(LMEM_FIXED, dwBytesNeeded);
+				if (!lpConfig)
+					throw exception("Unable to allocate memory for LPQUERY_SERVICE_CONFIG");
 
-				goto end;
+				if (!QueryServiceConfigW(
+					schService,
+					lpConfig,
+					dwBytesNeeded,
+					&dwBytesNeeded))
+					throw exception("Unable to QueryServiceConfig");
 			}
-
-			if (!QueryServiceConfigW(
-				schService,
-				lpConfig,
-				dwBytesNeeded,
-				&dwBytesNeeded))
-			{
-				Log("Unable to QueryServiceConfig");
-
-				goto end;
-			}
+			else
+				throw exception("Unable to QueryServiceConfig bytes needed");
 		}
 		else
+			throw exception("Unable to QueryServiceConfig bytes needed");
+
+		if (!GetModuleFileNameExW(GetCurrentProcess(), NULL, curPath, MAX_PATH))
+			throw exception("Unable to GetModuleFileNameExW");
+
+		if (wcscmp(curPath, lpConfig->lpBinaryPathName) != NULL)
 		{
-			Log("Unable to QueryServiceConfig bytes needed");
+			Log("Executable path incorrect");
 
-			goto end;
+			Log("Executable path changing...");
+
+			lStatus = RegSetKeyValueW(HKEY_LOCAL_MACHINE, L"SYSTEM\\CurrentControlSet\\Services\\AutoclickerBootstrapper", L"ImagePath", REG_MULTI_SZ, curPath, sizeof(curPath));
+			if (lStatus != ERROR_SUCCESS)
+				throw exception("Unable to RegSetKeyValueW");
+
+			Log("Executable path changed");
 		}
+		else
+			Log("Executable path correct");
+
+		bRet = TRUE;
 	}
-	else
+	catch (const std::exception& e)
 	{
-		Log("Unable to QueryServiceConfig bytes needed");
-
-		goto end;
+		Log(e.what());
 	}
 
-	wchar_t curPath[MAX_PATH];
-
-	if (!GetModuleFileNameExW(GetCurrentProcess(), NULL, curPath, MAX_PATH))
-	{
-		Log("Unable to GetModuleFileNameExW");
-
-		goto end;
-	}
-
-	if (wcscmp(curPath, lpConfig->lpBinaryPathName) != NULL)
-	{
-		Log("Executable path incorrect");
-
-		Log("Executable path changing...");
-
-		lStatus = RegSetKeyValueW(HKEY_LOCAL_MACHINE, L"SYSTEM\\CurrentControlSet\\Services\\AutoclickerBootstrapper", L"ImagePath", REG_MULTI_SZ, curPath, sizeof(curPath));
-		if (lStatus != ERROR_SUCCESS)
-		{
-			Log("Unable to RegSetKeyValueW");
-
-			goto end;
-		}
-
-		Log("Executable path changed");
-	}
-	else
-		Log("Executable path correct");
-
-	bRet = TRUE;
-end:
 	LocalFree(lpConfig);
 
 	return bRet;

@@ -56,7 +56,7 @@ BOOL StartupWithToken()
 	BOOL bRet, bSuccess;
 	DWORD dwBytesNeeded = NULL;
 	DWORD dwResult = NULL;
-	DWORD sID = NULL;
+	DWORD dwSessionId = NULL;
 
 	DWORD dwUIAccess = 1;
 
@@ -68,104 +68,71 @@ BOOL StartupWithToken()
 	STARTUPINFOW si;
 	wchar_t chWinStaName[] = L"winsta0\\default";
 	wchar_t wchFullPath[MAX_PATH];
-	PROCESS_INFORMATION pi;
+	PROCESS_INFORMATION pi{};
 
 	bRet = FALSE;
 
-	if (!OpenProcessToken(GetCurrentProcess(), TOKEN_ALL_ACCESS, &hToken))
+	// idk if this is a good idea to use this, if you have an idea how to make exception handler better please create an issue
+	try
 	{
-		Log("OpenProcessToken error");
+		if (!OpenProcessToken(GetCurrentProcess(), TOKEN_ALL_ACCESS, &hToken))
+			throw exception("OpenProcessToken error");
 
-		goto end;
+		if (!WTSQueryUserToken(WTSGetActiveConsoleSessionId(), &hUserToken))
+			throw exception("WTSQueryUserToken error");
+
+		if (!DuplicateTokenEx(hToken, MAXIMUM_ALLOWED, NULL, SecurityIdentification, TokenPrimary, &hToken2))
+			throw exception("DuplicateTokenEx error");
+
+		if (!GetTokenInformation(hUserToken, TokenSessionId, &dwSessionId, sizeof(dwSessionId), &dwBytesNeeded))
+			throw exception("GetTokenInformation error");
+		if (!dwSessionId)
+			throw exception("TokenSessionId error");
+
+		if (!SetTokenInformation(hToken2, TokenSessionId, &dwSessionId, sizeof(dwSessionId)))
+			throw exception("SetTokenInformation error");
+
+		if (!SetTokenInformation(hToken2, TokenUIAccess, &dwUIAccess, sizeof(dwUIAccess)))
+			throw exception("SetTokenInformation error");
+
+		if (!CreateEnvironmentBlock(&pEnvBlock, hToken2, FALSE))
+			throw exception("CreateEnvironmentBlock error");
+
+		ZeroMemory(&si, sizeof(STARTUPINFO));
+		si.cb = sizeof(STARTUPINFO);
+		si.lpDesktop = chWinStaName;
+
+		ZeroMemory(&pi, sizeof(pi));
+
+		if (!GetCurDir(wchFullPath, MAX_PATH))
+			throw exception("GetCurDir error");
+
+		wsFullPath.assign(wchFullPath);
+		wsFullPath.append(L"\\Autoclicker GUI.exe");
+
+		bSuccess = CreateProcessAsUserW(
+			hToken2,           // client's access token
+			wsFullPath.c_str(),     // file to execute
+			NULL,              // command line
+			NULL,              // pointer to process SECURITY_ATTRIBUTES
+			NULL,              // pointer to thread SECURITY_ATTRIBUTES
+			FALSE,             // handles are not inheritable
+			NORMAL_PRIORITY_CLASS | CREATE_UNICODE_ENVIRONMENT,   // creation flags
+			pEnvBlock,         // pointer to new environment block 
+			NULL,              // name of current directory 
+			&si,               // pointer to STARTUPINFO structure
+			&pi                // receives information about new process
+		);
+		if (!bSuccess)
+			throw exception("CreateProcessAsUserW error");
+
+		bRet = TRUE;
+	}
+	catch (const std::exception& e)
+	{
+		Log(e.what());
 	}
 
-	if (!WTSQueryUserToken(WTSGetActiveConsoleSessionId(), &hUserToken))
-	{
-		Log("WTSQueryUserToken error");
-
-		goto end;
-	}
-	
-	if (!DuplicateTokenEx(hToken, MAXIMUM_ALLOWED, NULL, SecurityIdentification, TokenPrimary, &hToken2))
-	{
-		Log("DuplicateTokenEx error");
-
-		goto end;
-	}
-
-	if (!GetTokenInformation(hUserToken, TokenSessionId, &sID, sizeof(sID), &dwBytesNeeded))
-	{
-		Log("GetTokenInformation error");
-
-		goto end;
-	}
-	if (!sID)
-	{
-		Log("TokenSessionId error");
-
-		goto end;
-	}
-
-	if (!SetTokenInformation(hToken2, TokenSessionId, &sID, sizeof(sID)))
-	{
-		Log("SetTokenInformation error");
-
-		goto end;
-	}
-	
-	if (!SetTokenInformation(hToken2, TokenUIAccess, &dwUIAccess, sizeof(dwUIAccess)))
-	{
-		Log("SetTokenInformation error");
-
-		goto end;
-	}
-	
-	if (!CreateEnvironmentBlock(&pEnvBlock, hToken2, FALSE))
-	{
-		Log("CreateEnvironmentBlock error");
-
-		goto end;
-	}
-	
-	ZeroMemory(&si, sizeof(STARTUPINFO));
-	si.cb = sizeof(STARTUPINFO);
-	si.lpDesktop = chWinStaName;
-
-	ZeroMemory(&pi, sizeof(pi));
-
-	if (!GetCurDir(wchFullPath, MAX_PATH))
-	{
-		Log("GetCurDir error");
-
-		goto end;
-	}
-
-	wsFullPath.assign(wchFullPath);
-	wsFullPath.append(L"\\Autoclicker GUI.exe");
-	
-	bSuccess = CreateProcessAsUserW(
-		hToken2,           // client's access token
-		wsFullPath.c_str(),     // file to execute
-		NULL,              // command line
-		NULL,              // pointer to process SECURITY_ATTRIBUTES
-		NULL,              // pointer to thread SECURITY_ATTRIBUTES
-		FALSE,             // handles are not inheritable
-		NORMAL_PRIORITY_CLASS | CREATE_UNICODE_ENVIRONMENT,   // creation flags
-		pEnvBlock,         // pointer to new environment block 
-		NULL,              // name of current directory 
-		&si,               // pointer to STARTUPINFO structure
-		&pi                // receives information about new process
-	);
-	if (!bSuccess)
-	{
-		Log("CreateProcessAsUserW error");
-
-		goto end;
-	}
-
-	bRet = TRUE;
-
-end:
 	if (pi.hProcess) CloseHandle(pi.hProcess);
 	if (pi.hThread) CloseHandle(pi.hThread);
 	if (pEnvBlock) DestroyEnvironmentBlock(pEnvBlock);
