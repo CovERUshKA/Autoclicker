@@ -42,96 +42,25 @@ D2D1_COLOR_F COGUI::COGUI_COLOR(FLOAT r, FLOAT g, FLOAT  b, FLOAT a)
 	return D2D1::ColorF(r, g, b, a);
 }
 
-BOOL RenderElement(LPBYTE lpElement)
-{
-	Element* element = ReCa<Element*>(lpElement);
-
-	switch (element->elementID)
-	{
-	case COGUI_Button:
-	{
-		Button button = *ReCa<Button*>(lpElement);
-
-		button.Render(lpElement);
-	}
-		break;
-	case COGUI_TextEdit:
-	{
-		TextEdit textedit = *ReCa<TextEdit*>(lpElement);
-
-		textedit.Render(lpElement);
-	}
-	break;
-	case COGUI_TextLabel:
-	{
-		TextLabel textlabel = *ReCa<TextLabel*>(lpElement);
-
-		textlabel.Render(lpElement);
-	}
-	break;
-	case COGUI_RecordButton:
-	{
-		RecordButton recordbutton = *ReCa<RecordButton*>(lpElement);
-
-		recordbutton.Render(lpElement);
-	}
-	break;
-	case COGUI_Table:
-	{
-		Table table = *ReCa<Table*>(lpElement);
-
-		table.Render();
-	}
-	break;
-	case COGUI_DropList:
-	{
-		DropList droplist = *ReCa<DropList*>(lpElement);
-
-		droplist.Render();
-	}
-	break;
-	case COGUI_MinimizeButton:
-	{
-		MinimizeButton minimizebutton = *ReCa<MinimizeButton*>(lpElement);
-
-		minimizebutton.Render();
-	}
-	break;
-	case COGUI_ScaleButton:
-	{
-		ScaleButton scalebutton = *ReCa<ScaleButton*>(lpElement);
-
-		scalebutton.Render();
-	}
-	break;
-	case COGUI_CloseButton:
-	{
-		CloseButton closebutton = *ReCa<CloseButton*>(lpElement);
-
-		closebutton.Render();
-	}
-	break;
-	default:
-		break;
-	}
-
-	return TRUE;
-}
-
-LPBYTE GetElement(INT elementID)
+LPBYTE GetElement(INT ID)
 {
 	for (UINT i = 0; i < elements.count; i++)
 	{
-		if ((*ReCa<Element*>(elements.lpBuffer[i])).ID == elementID)
+		if ((*ReCa<Element*>(elements.lpBuffer[i])).ID == ID)
 			return elements.lpBuffer[i];
 	}
 
 	return FALSE;
 }
 
-INT COGUI::GetElementID(COGUIHANDLE hElement)
+INT COGUI::GetID(COGUIHANDLE hElement)
 {
 	return (*ReCa<Element*>(hElement)).ID;
+}
+
+INT COGUI::GetElementID(COGUIHANDLE hElement)
+{
+	return (*ReCa<Element*>(hElement)).elementID;
 }
 
 BOOL COGUI::AddTableColumn(INT elementID, LPWCH pwchName, INT strLength)
@@ -159,19 +88,31 @@ BOOL COGUI::AddTableString(INT elementID, LPWCH pwchName, INT strLength)
 
 	Table* table = ReCa<Table*>(element);
 
+	if (table->elementID != COGUI_Table)
+		return FALSE;
+
 	table->cLines += 1;
-	LPWCH* buf = table->pwchLineStrings;
-	LPINT strLengthsBuf = table->strLengths;
-	table->pwchLineStrings = new LPWCH[table->cLines];
-	table->strLengths = new INT[table->cLines];
+
+	LPVOID buf = table->pwchLineStrings;
+	LPVOID strLengthsBuf = table->strLengths;
+
+	table->pwchLineStrings = (LPWCH*)memory.Alloc(sizeof(LPWCH) * table->cLines);
+	table->strLengths = (LPINT)memory.Alloc(sizeof(INT) * table->cLines);
 
 	memcpy_s(table->pwchLineStrings, sizeof(LPWCH) * (table->cLines - 1), buf, sizeof(LPWCH) * (table->cLines - 1));
-	memcpy_s(table->strLengths, sizeof(LPINT) * (table->cLines - 1), strLengthsBuf, sizeof(LPINT) * (table->cLines - 1));
+	memcpy_s(table->strLengths, sizeof(INT) * (table->cLines - 1), strLengthsBuf, sizeof(INT) * (table->cLines - 1));
 
 	table->strLengths[table->cLines - 1] = strLength;
 
-	table->pwchLineStrings[table->cLines - 1] = new wchar_t[strLength];
-	memcpy_s(table->pwchLineStrings[table->cLines - 1], strLength * 2, pwchName, strLength * 2);
+	table->pwchLineStrings[table->cLines - 1] = (LPWCH)memory.Alloc(sizeof(WCHAR) * strLength);
+	
+	memcpy_s(table->pwchLineStrings[table->cLines - 1], strLength * sizeof(WCHAR), pwchName, strLength * sizeof(WCHAR));
+
+	if (buf && memory.Validate(buf))
+		memory.Free(buf);
+
+	if (strLengthsBuf && memory.Validate(strLengthsBuf))
+		memory.Free(strLengthsBuf);
 
 	return TRUE;
 }
@@ -187,6 +128,28 @@ INT COGUI::GetTableSelectedLine(INT elementID)
 	return table->selectedLine;
 }
 
+INT COGUI::GetDropListSelectedLine(INT elementID)
+{
+	LPBYTE element = GetElement(elementID);
+	if (element == NULL)
+		return FALSE;
+
+	DropList* droplist = ReCa<DropList*>(element);
+
+	return droplist->selectedLine;
+}
+
+LPWCH COGUI::GetDropListSelectedLineName(INT elementID)
+{
+	LPBYTE element = GetElement(elementID);
+	if (element == NULL)
+		return FALSE;
+
+	DropList* droplist = ReCa<DropList*>(element);
+
+	return droplist->pLineNames[droplist->selectedLine];
+}
+
 BOOL COGUI::AddDropListString(INT elementID, LPWCH pStr, INT strLength)
 {
 	LPBYTE element = GetElement(elementID);
@@ -195,24 +158,25 @@ BOOL COGUI::AddDropListString(INT elementID, LPWCH pStr, INT strLength)
 
 	DropList* droplist = ReCa<DropList*>(element);
 
-	droplist->cFileNames += 1;
+	droplist->countLineNames += 1;
 
-	LPWCH* bufpFileNames = droplist->pFileNames;
-	LPINT buflFileNames = droplist->lFileNames;
+	LPWCH* bufpFileNames = droplist->pLineNames;
+	LPINT buflFileNames = droplist->pLineNamesLength;
 
-	droplist->pFileNames = new LPWCH[droplist->cFileNames];
-	droplist->lFileNames = new INT[droplist->cFileNames];
+	droplist->pLineNames = (LPWCH*)memory.Alloc(sizeof(LPWCH) * droplist->countLineNames);
+	droplist->pLineNamesLength = (LPINT)memory.Alloc(sizeof(INT) * droplist->countLineNames);
 
-	for (UINT i = 0; i < droplist->cFileNames - 1; i++)
+	for (UINT i = 0; i < droplist->countLineNames - 1; i++)
 	{
-		droplist->pFileNames[i] = bufpFileNames[i];
-		droplist->lFileNames[i] = buflFileNames[i];
+		droplist->pLineNames[i] = bufpFileNames[i];
+		droplist->pLineNamesLength[i] = buflFileNames[i];
 	}
 
-	droplist->pFileNames[droplist->cFileNames - 1] = new WCHAR[strLength];
-	memcpy_s(droplist->pFileNames[droplist->cFileNames - 1], strLength * 2, pStr, strLength * 2);
+	droplist->pLineNames[droplist->countLineNames - 1] = (LPWCH)memory.Alloc((sizeof(WCHAR) + 1) * strLength);
+	ZeroMemory(droplist->pLineNames[droplist->countLineNames - 1], (sizeof(WCHAR) + 1) * strLength);
+	memcpy_s(droplist->pLineNames[droplist->countLineNames - 1], strLength * 2, pStr, strLength * 2);
 
-	droplist->lFileNames[droplist->cFileNames - 1] = strLength;
+	droplist->pLineNamesLength[droplist->countLineNames - 1] = strLength;
 
 	return TRUE;
 }
@@ -225,13 +189,13 @@ BOOL COGUI::ClearDropList(INT elementID)
 
 	DropList* droplist = ReCa<DropList*>(element);
 
-	for (UINT i = 0; i < droplist->cFileNames; i++)
-		delete[] droplist->pFileNames[i];
+	for (UINT i = 0; i < droplist->countLineNames; i++)
+		memory.Free(droplist->pLineNames[i]);
 
-	delete[] droplist->lFileNames;
-	delete[] droplist->pFileNames;
+	memory.Free(droplist->pLineNamesLength);
+	memory.Free(droplist->pLineNames);
 
-	droplist->cFileNames = NULL;
+	droplist->countLineNames = NULL;
 
 	return TRUE;
 }
@@ -251,8 +215,8 @@ BOOL COGUI::DeleteTableLine(INT elementID, INT nLine)
 	table->cLines -= 1;
 	LPWCH* buf = table->pwchLineStrings;
 	LPINT strLengthsBuf = table->strLengths;
-	table->pwchLineStrings = new LPWCH[table->cLines];
-	table->strLengths = new INT[table->cLines];
+	table->pwchLineStrings = (LPWCH*)memory.Alloc(sizeof(LPWCH) * table->cLines);
+	table->strLengths = (LPINT)memory.Alloc(sizeof(INT) * table->cLines);
 
 	bool deleted = false;
 
@@ -260,7 +224,7 @@ BOOL COGUI::DeleteTableLine(INT elementID, INT nLine)
 	{
 		if (i == nLine)
 		{
-			delete[] buf[i];
+			memory.Free(buf[i]);
 			deleted = true;
 		}
 		else if (deleted)
@@ -274,7 +238,7 @@ BOOL COGUI::DeleteTableLine(INT elementID, INT nLine)
 			table->strLengths[i] = strLengthsBuf[i];
 		}
 	}
-	delete[] strLengthsBuf;
+	memory.Free(strLengthsBuf);
 
 	table->selectedLine = -1;
 
@@ -312,13 +276,21 @@ BOOL COGUI::Render()
 	for (UINT i = 0; i < elements.count; i++)
 	{
 		bool visible = false;
-		INT ID = GetElementID(elements.lpBuffer[i]);
+		INT ID = GetID(elements.lpBuffer[i]);
 		
 		if (!IsVisible(ID, &visible))
 			continue;
 
-		if (visible)
-			RenderElement(elements.lpBuffer[i]);
+		if (elements.activeID != -1)
+		{
+			if (elements.activeID != ID)
+				COGUI::Routine(COGUI_RENDER, (LPARAM)elements.lpBuffer[i]);
+		}
+		else
+		{
+			if (visible)
+				COGUI::Routine(COGUI_RENDER, (LPARAM)elements.lpBuffer[i]);
+		}
 	}
 
 	if (elements.activeID != -1)
@@ -328,7 +300,7 @@ BOOL COGUI::Render()
 			return TRUE;
 
 		if (visible)
-			RenderElement(GetElement(elements.activeID));
+			COGUI::Routine(COGUI_RENDER, (LPARAM)GetElement(elements.activeID));
 	}
 
 	return TRUE;
@@ -386,75 +358,6 @@ BOOL COGUI::IsVisible(INT elementID, bool* lpBool)
 	return TRUE;
 }
 
-void ApplyMessage(COGUIHANDLE hElement)
-{
-	BOOL bRet = FALSE;
-	Element* pHdr = ReCa<Element*>(hElement);
-
-	switch (pHdr->elementID)
-	{
-	case COGUI_Button:
-	{
-		Button* button = ReCa<Button*>(hElement);
-		button->ApplyMessage(lpCOGUIWndProc);
-	}
-		break;
-	case COGUI_TextEdit:
-	{
-		TextEdit* textedit = ReCa<TextEdit*>(hElement);
-
-		textedit->ApplyMessage(hElement, lpCOGUIWndProc);
-	}
-	break;
-	case COGUI_RecordButton:
-	{
-		RecordButton* recordbutton = ReCa<RecordButton*>(hElement);
-
-		recordbutton->ApplyMessage(lpCOGUIWndProc);
-	}
-	break;
-	case COGUI_Table:
-	{
-		Table* table = ReCa<Table*>(hElement);
-
-		table->ApplyMessage();
-	}
-	break;
-	case COGUI_DropList:
-	{
-		DropList* droplist = ReCa<DropList*>(hElement);
-
-		droplist->ApplyMessage(lpCOGUIWndProc);
-	}
-	break;
-	case COGUI_MinimizeButton:
-	{
-		MinimizeButton* minimizebutton = ReCa<MinimizeButton*>(hElement);
-
-		minimizebutton->ApplyMessage(lpCOGUIWndProc);
-	}
-	break;
-	case COGUI_ScaleButton:
-	{
-		ScaleButton* scalebutton = ReCa<ScaleButton*>(hElement);
-
-		scalebutton->ApplyMessage(lpCOGUIWndProc);
-	}
-	break;
-	case COGUI_CloseButton:
-	{
-		CloseButton* closebutton = ReCa<CloseButton*>(hElement);
-
-		closebutton->ApplyMessage(lpCOGUIWndProc);
-	}
-	break;
-	default:
-		break;
-	}
-
-	return;
-}
-
 HWND COGUI::GetWindow()
 {
 	return hWnd;
@@ -490,7 +393,7 @@ void IO()
 			return;
 
 		if (visible)
-			ApplyMessage(GetElement(elements.activeID));
+			COGUI::Routine(COGUI_INPUT, (LPARAM)GetElement(elements.activeID));
 
 		return;
 	}
@@ -498,7 +401,7 @@ void IO()
 	for (UINT i = 0; i < elements.count; i++)
 	{
 		bool visible = false;
-		INT elementID = COGUI::GetElementID(elements.lpBuffer[i]);
+		INT elementID = COGUI::GetID(elements.lpBuffer[i]);
 		if (elementID == NULL)
 			continue;
 
@@ -506,7 +409,7 @@ void IO()
 			continue;
 
 		if (visible)
-			ApplyMessage(elements.lpBuffer[i]);
+			COGUI::Routine(COGUI_INPUT, (LPARAM)elements.lpBuffer[i]);
 	}
 }
 
@@ -606,172 +509,364 @@ LRESULT COGUI::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 BOOL AddElement(void* pElement, UINT elementSize)
 {
 	HRESULT result = FALSE;
+	BOOL bRet = FALSE;
 
 	LPBYTE* lpBuffer = elements.lpBuffer;
 
-	elements.lpBuffer = new LPBYTE[elements.count + 1];
+	elements.lpBuffer = (LPBYTE*)memory.Alloc(sizeof(LPBYTE) * elements.count + 1);
 	if (elements.lpBuffer == NULL)
 	{
-		Log("Unable to new");
-		elements.lpBuffer = lpBuffer;
-		return FALSE;
+		Log("Unable to memory.Alloc");
+		
+		goto end;
 	}
 	
 	for (UINT i = 0; i < elements.count; i++)
 		elements.lpBuffer[i] = lpBuffer[i];
 
-	elements.lpBuffer[elements.count] = new BYTE[elementSize];
+	elements.lpBuffer[elements.count] = (LPBYTE)memory.Alloc(sizeof(BYTE) * elementSize);
 	if (elements.lpBuffer[elements.count] == NULL)
 	{
-		Log("Unable to new");
-		elements.lpBuffer = lpBuffer;
-		delete[] elements.lpBuffer;
-		return FALSE;
+		Log("Unable to memory.Alloc");
+
+		goto end;
 	}
 
 	result = memcpy_s(elements.lpBuffer[elements.count], elementSize, pElement, elementSize);
 	if (result != NULL)
 	{
 		Log("Unable to memcpy_s");
-		elements.lpBuffer = lpBuffer;
-		delete[] elements.lpBuffer;
-		return FALSE;
+
+		goto end;
 	}
 
 	elements.count += 1;
-	delete[] lpBuffer;
 
-	return TRUE;
+	bRet = TRUE;
+
+end:
+
+	if (!bRet)
+	{
+		if (elements.lpBuffer)
+			memory.Free(elements.lpBuffer);
+
+		elements.lpBuffer = lpBuffer;
+	}
+	else
+	{
+		memory.Free(lpBuffer);
+	}
+
+	return bRet;
 }
 
 BOOL COGUI::CreateElement(UINT elementID, LPCWSTR lpElementName, FLOAT x, FLOAT y, FLOAT nWidth, FLOAT nHeight, UINT uiParams, INT ID)
 {
-	BOOL bRet = FALSE;
+	ElementCreateStruct structere = { elementID, lpElementName, x, y, nWidth, nHeight, uiParams, ID };
 
 	if (ID != -1)
+	{
 		for (UINT i = 0; i < elements.count; i++)
 		{
 			Element* pHdr = ReCa<Element*>(elements.lpBuffer[i]);
 			if (pHdr->ID == ID)
 				return FALSE;
 		}
+	}
 
-	switch (elementID)
+	return Routine(COGUI_CREATE, (LPARAM)&structere);
+}
+
+BOOL COGUI::Routine(DWORD dwMessageID, LPARAM lParam)
+{
+	BOOL bRet = FALSE;
+
+	DWORD dwElementID;
+
+	if (dwMessageID == COGUI_CREATE)
+		dwElementID = ReCa<ElementCreateStruct*>(lParam)->elementID;
+	else
+		dwElementID = COGUI::GetElementID((COGUIHANDLE)lParam);
+
+	switch (dwElementID)
 	{
 	case COGUI_Button:
 	{
-		Button button;
-		button.ID = ID;
-		button.x = x;
-		button.y = y;
-		button.width = nWidth;
-		button.height = nHeight;
-		button.params = uiParams;
-		button.wchElementName = lpElementName;
-		button.strLength = button.wchElementName.length();
+		if (dwMessageID == COGUI_CREATE)
+		{
+			ElementCreateStruct createStruct = *ReCa<ElementCreateStruct*>(lParam);
 
-		bRet = AddElement(&button, sizeof(button));
+			Button button;
+			button.ID = createStruct.ID;
+			button.x = createStruct.x;
+			button.y = createStruct.y;
+			button.width = createStruct.nWidth;
+			button.height = createStruct.nHeight;
+			button.params = createStruct.uiParams;
+			button.wchElementName = createStruct.lpElementName;
+			button.strLength = button.wchElementName.length();
+
+			bRet = AddElement(&button, sizeof(button));
+		}
+		else
+		{
+			Button* pButton = ReCa<Button*>(lParam);
+
+			if (dwMessageID == COGUI_RENDER)
+			{
+				pButton->Render((COGUIHANDLE)pButton);
+			}
+			else if (dwMessageID == COGUI_INPUT)
+			{
+				pButton->ApplyMessage(lpCOGUIWndProc);
+			}
+		}
 	}
 	break;
 	case COGUI_TextEdit:
 	{
-		TextEdit textedit;
-		textedit.ID = ID;
-		textedit.x = x;
-		textedit.y = y;
-		textedit.width = nWidth;
-		textedit.height = nHeight;
-		textedit.params = uiParams;
-		textedit.wchElementName = lpElementName;
-		textedit.strLength = textedit.wchElementName.length();
+		if (dwMessageID == COGUI_CREATE)
+		{
+			ElementCreateStruct createStruct = *ReCa<ElementCreateStruct*>(lParam);
 
-		bRet = AddElement(&textedit, sizeof(textedit));
+			TextEdit textedit;
+			textedit.ID = createStruct.ID;
+			textedit.x = createStruct.x;
+			textedit.y = createStruct.y;
+			textedit.width = createStruct.nWidth;
+			textedit.height = createStruct.nHeight;
+			textedit.params = createStruct.uiParams;
+			textedit.wchElementName = createStruct.lpElementName;
+			textedit.strLength = textedit.wchElementName.length();
+
+			bRet = AddElement(&textedit, sizeof(textedit));
+		}
+		else
+		{
+			TextEdit* pTextEdit = ReCa<TextEdit*>(lParam);
+
+			if (dwMessageID == COGUI_RENDER)
+			{
+				pTextEdit->Render((COGUIHANDLE)pTextEdit);
+			}
+			else if (dwMessageID == COGUI_INPUT)
+			{
+				pTextEdit->ApplyMessage((COGUIHANDLE)pTextEdit, lpCOGUIWndProc);
+			}
+		}
 	}
 	break;
 	case COGUI_TextLabel:
 	{
-		TextLabel textlabel;
-		textlabel.ID = ID;
-		textlabel.x = x;
-		textlabel.y = y;
-		textlabel.width = nWidth;
-		textlabel.height = nHeight;
-		textlabel.params = uiParams;
-		textlabel.wchElementName = lpElementName;
-		textlabel.strLength = textlabel.wchElementName.length();
+		if (dwMessageID == COGUI_CREATE)
+		{
+			ElementCreateStruct createStruct = *ReCa<ElementCreateStruct*>(lParam);
 
-		bRet = AddElement(&textlabel, sizeof(textlabel));
+			TextLabel textlabel;
+			textlabel.ID = createStruct.ID;
+			textlabel.x = createStruct.x;
+			textlabel.y = createStruct.y;
+			textlabel.width = createStruct.nWidth;
+			textlabel.height = createStruct.nHeight;
+			textlabel.params = createStruct.uiParams;
+			textlabel.wchElementName = createStruct.lpElementName;
+			textlabel.strLength = textlabel.wchElementName.length();
+
+			bRet = AddElement(&textlabel, sizeof(textlabel));
+		}
+		else
+		{
+			TextLabel* pTextLabel = ReCa<TextLabel*>(lParam);
+
+			if (dwMessageID == COGUI_RENDER)
+			{
+				pTextLabel->Render((COGUIHANDLE)pTextLabel);
+			}
+			else if (dwMessageID == COGUI_INPUT)
+			{
+				pTextLabel->ApplyMessage(lpCOGUIWndProc);
+			}
+		}
 	}
 	break;
 	case COGUI_RecordButton:
 	{
-		RecordButton recordbutton;
-		recordbutton.ID = ID;
-		recordbutton.x = x;
-		recordbutton.y = y;
-		recordbutton.width = nWidth;
-		recordbutton.height = nHeight;
-		recordbutton.params = uiParams;
-		recordbutton.wchElementName = lpElementName;
-		recordbutton.strLength = recordbutton.wchElementName.length();
+		if (dwMessageID == COGUI_CREATE)
+		{
+			ElementCreateStruct createStruct = *ReCa<ElementCreateStruct*>(lParam);
 
-		bRet = AddElement(&recordbutton, sizeof(recordbutton));
+			RecordButton recordbutton;
+			recordbutton.ID = createStruct.ID;
+			recordbutton.x = createStruct.x;
+			recordbutton.y = createStruct.y;
+			recordbutton.width = createStruct.nWidth;
+			recordbutton.height = createStruct.nHeight;
+			recordbutton.params = createStruct.uiParams;
+			recordbutton.wchElementName = createStruct.lpElementName;
+			recordbutton.strLength = recordbutton.wchElementName.length();
+
+			bRet = AddElement(&recordbutton, sizeof(recordbutton));
+		}
+		else
+		{
+			RecordButton* pRecordButton = ReCa<RecordButton*>(lParam);
+
+			if (dwMessageID == COGUI_RENDER)
+			{
+				pRecordButton->Render((COGUIHANDLE)pRecordButton);
+			}
+			else if (dwMessageID == COGUI_INPUT)
+			{
+				pRecordButton->ApplyMessage(lpCOGUIWndProc);
+			}
+		}
 	}
 	break;
 	case COGUI_Table:
 	{
-		Table table;
-		table.ID = ID;
-		table.x = x;
-		table.y = y;
-		table.width = nWidth;
-		table.height = nHeight;
-		table.params = uiParams;
+		if (dwMessageID == COGUI_CREATE)
+		{
+			ElementCreateStruct createStruct = *ReCa<ElementCreateStruct*>(lParam);
 
-		bRet = AddElement(&table, sizeof(table));
+			Table table;
+			table.ID = createStruct.ID;
+			table.x = createStruct.x;
+			table.y = createStruct.y;
+			table.width = createStruct.nWidth;
+			table.height = createStruct.nHeight;
+			table.params = createStruct.uiParams;
+			table.wchElementName = createStruct.lpElementName;
+			table.strLength = table.wchElementName.length();
+
+			bRet = AddElement(&table, sizeof(table));
+		}
+		else
+		{
+			Table* pTable = ReCa<Table*>(lParam);
+
+			if (dwMessageID == COGUI_RENDER)
+			{
+				pTable->Render();
+			}
+			else if (dwMessageID == COGUI_INPUT)
+			{
+				pTable->ApplyMessage();
+			}
+		}
 	}
 	break;
 	case COGUI_DropList:
 	{
-		DropList droplist;
-		droplist.ID = ID;
-		droplist.x = x;
-		droplist.y = y;
-		droplist.width = nWidth;
-		droplist.height = nHeight;
-		droplist.params = uiParams;
-		droplist.wchElementName = lpElementName;
-		droplist.strLength = droplist.wchElementName.length();
+		if (dwMessageID == COGUI_CREATE)
+		{
+			ElementCreateStruct createStruct = *ReCa<ElementCreateStruct*>(lParam);
 
-		bRet = AddElement(&droplist, sizeof(droplist));
+			DropList droplist;
+			droplist.ID = createStruct.ID;
+			droplist.x = createStruct.x;
+			droplist.y = createStruct.y;
+			droplist.width = createStruct.nWidth;
+			droplist.height = createStruct.nHeight;
+			droplist.params = createStruct.uiParams;
+			droplist.wchElementName = createStruct.lpElementName;
+			droplist.strLength = droplist.wchElementName.length();
+
+			bRet = AddElement(&droplist, sizeof(droplist));
+		}
+		else
+		{
+			DropList* pDropList = ReCa<DropList*>(lParam);
+
+			if (dwMessageID == COGUI_RENDER)
+			{
+				pDropList->Render();
+			}
+			else if (dwMessageID == COGUI_INPUT)
+			{
+				pDropList->ApplyMessage(lpCOGUIWndProc);
+			}
+		}
 	}
 	break;
 	case COGUI_MinimizeButton:
 	{
-		MinimizeButton minimizebutton;
+		if (dwMessageID == COGUI_CREATE)
+		{
+			ElementCreateStruct createStruct = *ReCa<ElementCreateStruct*>(lParam);
 
-		bRet = AddElement(&minimizebutton, sizeof(minimizebutton));
+			MinimizeButton minimizebutton;
+
+			bRet = AddElement(&minimizebutton, sizeof(minimizebutton));
+		}
+		else
+		{
+			MinimizeButton* pMinimizeButton = ReCa<MinimizeButton*>(lParam);
+
+			if (dwMessageID == COGUI_RENDER)
+			{
+				pMinimizeButton->Render();
+			}
+			else if (dwMessageID == COGUI_INPUT)
+			{
+				pMinimizeButton->ApplyMessage(lpCOGUIWndProc);
+			}
+		}
 	}
 	break;
 	case COGUI_ScaleButton:
 	{
-		ScaleButton scalebutton;
+		if (dwMessageID == COGUI_CREATE)
+		{
+			ElementCreateStruct createStruct = *ReCa<ElementCreateStruct*>(lParam);
 
-		bRet = AddElement(&scalebutton, sizeof(scalebutton));
+			ScaleButton scalebutton;
+
+			bRet = AddElement(&scalebutton, sizeof(scalebutton));
+		}
+		else
+		{
+			ScaleButton* pScaleButton = ReCa<ScaleButton*>(lParam);
+
+			if (dwMessageID == COGUI_RENDER)
+			{
+				pScaleButton->Render();
+			}
+			else if (dwMessageID == COGUI_INPUT)
+			{
+				pScaleButton->ApplyMessage(lpCOGUIWndProc);
+			}
+		}
 	}
 	break;
 	case COGUI_CloseButton:
 	{
-		CloseButton closebutton;
+		if (dwMessageID == COGUI_CREATE)
+		{
+			ElementCreateStruct createStruct = *ReCa<ElementCreateStruct*>(lParam);
 
-		bRet = AddElement(&closebutton, sizeof(closebutton));
+			CloseButton closebutton;
+
+			bRet = AddElement(&closebutton, sizeof(closebutton));
+		}
+		else
+		{
+			CloseButton* pCloseButton = ReCa<CloseButton*>(lParam);
+
+			if (dwMessageID == COGUI_RENDER)
+			{
+				pCloseButton->Render();
+			}
+			else if (dwMessageID == COGUI_INPUT)
+			{
+				pCloseButton->ApplyMessage(lpCOGUIWndProc);
+			}
+		}
 	}
 	break;
 	default:
 		break;
 	}
-
-	return bRet;
 }
 
 BOOL COGUI::Init(HWND _hWnd, LPVOID lpfnCOGUIWndProc)
