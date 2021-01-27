@@ -16,6 +16,8 @@
 #include "GUI/CoGUI.hpp"
 #include "GUI/Draw/Draw.hpp"
 #include "GUI/IO/IO.hpp"
+#include "GUI/Memory/Memory.hpp"
+#include "Autoclicker/Autoclicker.hpp"
 
 #include "Overlay.hpp"
 
