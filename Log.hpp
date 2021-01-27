@@ -9,6 +9,5 @@
 #include "Additional.h"
 
 void Log(const char* text);
-void Log(const wchar_t* text);
 
 using namespace std;

@@ -1,6 +1,8 @@
 #include "Log.hpp"
 
-void LogTime(wofstream* log, DWORD lastError)
+HANDLE hFile;
+
+void LogTime(string* log, DWORD lastError)
 {
 	time_t _time = time(NULL);
 
@@ -9,121 +11,114 @@ void LogTime(wofstream* log, DWORD lastError)
 
 	localtime_s(&ltm, &_time);
 
-	*log << L"[";
+	log->append("[");
 
 	if (ltm.tm_mday < 10)
-		*log << L"0";
+		log->append("0");
 
-	*log << ltm.tm_mday;
+	log->append(to_string(ltm.tm_mday));
 
-	*log << L".";
+	log->append(".");
 
 	if (1 + ltm.tm_mon < 10)
-		*log << L"0";
+		log->append("0");
 
-	*log << 1 + ltm.tm_mon;
+	log->append(to_string(1 + ltm.tm_mon));
 
-	*log << L".";
+	log->append(".");
 
-	*log << 1900 + ltm.tm_year;
+	log->append(to_string(1900 + ltm.tm_year));
 
-	*log << L" ";
+	log->append(" ");
 
 	if (ltm.tm_hour < 10)
-		*log << L"0";
+		log->append("0");
 
-	*log << ltm.tm_hour;
+	log->append(to_string(ltm.tm_hour));
 
-	*log << L":";
+	log->append(":");
 
 	if (ltm.tm_min < 10)
-		*log << L"0";
+		log->append("0");
 
-	*log << ltm.tm_min;
+	log->append(to_string(ltm.tm_min));
 
-	*log << L":";
+	log->append(":");
 
 	if (ltm.tm_sec < 10)
-		*log << L"0";
+		log->append("0");
 
-	*log << ltm.tm_sec;
+	log->append(to_string(ltm.tm_sec));
 
-	*log << L" LastError: ";
+	log->append(" LastError: ");
 
-	*log << lastError;
+	log->append(to_string(lastError));
 
 	if (lastError)
 	{
-		*log << L"(";
+		log->append("(");
 
 		// Retrieve the system error message for the last-error code
 
 		LPVOID lpMsgBuf;
 
-		FormatMessageW(
+		FormatMessageA(
 			FORMAT_MESSAGE_ALLOCATE_BUFFER |
 			FORMAT_MESSAGE_FROM_SYSTEM |
 			FORMAT_MESSAGE_IGNORE_INSERTS,
 			NULL,
 			lastError,
 			MAKELANGID(LANG_ENGLISH, SUBLANG_DEFAULT),
-			(LPWSTR)&lpMsgBuf,
+			(LPSTR)&lpMsgBuf,
 			0, NULL);
 
 		for (size_t i = 0; i < LocalSize(lpMsgBuf); i++)
-			if (((LPWSTR)lpMsgBuf)[i] == L'\n'
-				|| ((LPWSTR)lpMsgBuf)[i] == L'\r')
-				((LPWSTR)lpMsgBuf)[i] = 0x00;
+			if (((LPSTR)lpMsgBuf)[i] == '\n'
+				|| ((LPSTR)lpMsgBuf)[i] == '\r')
+				((LPSTR)lpMsgBuf)[i] = 0x00;
 
-		*log << (LPWSTR)lpMsgBuf << L")";
+		log->append((LPSTR)lpMsgBuf);
+
+		log->append(")");
 
 		LocalFree(lpMsgBuf);
 	}
 
-	*log << L"] ";
+	log->append("] ");
 
 	return;
 }
 
 void Log(const char* text)
 {
-	size_t nocConverted;
-
-	wchar_t* pwText = new wchar_t[strlen(text) + 1];
-	ZeroMemory(pwText, sizeof(pwText));
-
-	mbstowcs_s(&nocConverted, pwText, strlen(text) + 1, text, strlen(text));
-
-	Log(pwText);
-
-	delete[] pwText;
-
-	return;
-}
-
-void Log(const wchar_t* text)
-{
 	DWORD lastError = GetLastError();
+	std::wstring fullpath;
+	std::string log;
 
 	wchar_t path[MAX_PATH];
+	ZeroMemory(path, sizeof(path));
+
 	if (!GetCurDir(path, MAX_PATH))
 		return;
 
-	std::wstring fullpath(path);
+	fullpath.append(path);
 	fullpath.append(L"\\error.log");
 
-	std::wofstream log(fullpath.c_str(), std::ios::app);
-
-	if (!log.is_open())
-		return;
+	if (!hFile
+		|| hFile == INVALID_HANDLE_VALUE)
+	{
+		hFile = CreateFileW(fullpath.c_str(), FILE_APPEND_DATA, FILE_SHARE_READ | FILE_SHARE_WRITE, 0, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
+		if (hFile == INVALID_HANDLE_VALUE)
+			return;
+	}
 
 	LogTime(&log, lastError);
 
-	log << text;
+	log.append(text);
+	
+	log.append("\n");
 
-	log << L"\n";
-
-	log.close();
+	WriteFile(hFile, log.c_str(), log.size(), 0, 0);
 
 	return;
 }
