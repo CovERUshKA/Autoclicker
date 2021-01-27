@@ -64,6 +64,12 @@
     <Filter Include="Log">
       <UniqueIdentifier>{a05b1b9f-1435-4d41-9cb0-c94fcf85cb3d}</UniqueIdentifier>
     </Filter>
+    <Filter Include="GUI\Memory">
+      <UniqueIdentifier>{ff318ca9-490a-431f-a887-ce761c288919}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Autoclicker">
+      <UniqueIdentifier>{44e84d8b-7ad7-4f6e-b150-a20a8a83dd26}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -113,6 +119,12 @@
     </ClCompile>
     <ClCompile Include="..\..\Log.cpp">
       <Filter>Log</Filter>
+    </ClCompile>
+    <ClCompile Include="GUI\Memory\Memory.cpp">
+      <Filter>GUI\Memory</Filter>
+    </ClCompile>
+    <ClCompile Include="Autoclicker\Autoclicker.cpp">
+      <Filter>Autoclicker</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -178,6 +190,12 @@
     </ClInclude>
     <ClInclude Include="..\..\Log.hpp">
       <Filter>Log</Filter>
+    </ClInclude>
+    <ClInclude Include="GUI\Memory\Memory.hpp">
+      <Filter>GUI\Memory</Filter>
+    </ClInclude>
+    <ClInclude Include="Autoclicker\Autoclicker.hpp">
+      <Filter>Autoclicker</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

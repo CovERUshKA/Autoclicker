@@ -71,19 +71,19 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>$(ProjectDir)\ImGUI;$(IncludePath)</IncludePath>
+    <IncludePath>$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>$(ProjectDir)\ImGUI;$(IncludePath)</IncludePath>
+    <IncludePath>$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>$(ProjectDir)\ImGUI;$(IncludePath)</IncludePath>
+    <IncludePath>$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>$(ProjectDir)\ImGUI;$(IncludePath)</IncludePath>
+    <IncludePath>$(IncludePath)</IncludePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -102,10 +102,12 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
-      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+      <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
+      <OmitFramePointers>false</OmitFramePointers>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -134,16 +136,21 @@
       <AdditionalDependencies>%(AdditionalDependencies)</AdditionalDependencies>
       <UACExecutionLevel>RequireAdministrator</UACExecutionLevel>
       <UACUIAccess>false</UACUIAccess>
+      <LargeAddressAware>
+      </LargeAddressAware>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
-      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+      <WarningLevel>Level3</WarningLevel>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
+      <LanguageStandard>Default</LanguageStandard>
+      <OmitFramePointers>false</OmitFramePointers>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -153,10 +160,13 @@
       <AdditionalDependencies>%(AdditionalDependencies)</AdditionalDependencies>
       <UACUIAccess>false</UACUIAccess>
       <UACExecutionLevel>RequireAdministrator</UACExecutionLevel>
+      <LargeAddressAware>
+      </LargeAddressAware>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\..\Log.cpp" />
+    <ClCompile Include="Autoclicker\Autoclicker.cpp" />
     <ClCompile Include="GUI\CoGUI.cpp" />
     <ClCompile Include="GUI\Draw\d2d1\D2D1_DRAW.cpp" />
     <ClCompile Include="GUI\Elements\Button\Button.cpp" />
@@ -170,11 +180,13 @@
     <ClCompile Include="GUI\Elements\TextEdit\TextEdit.cpp" />
     <ClCompile Include="GUI\Elements\TextLabel\TextLabel.cpp" />
     <ClCompile Include="GUI\IO\IO.cpp" />
+    <ClCompile Include="GUI\Memory\Memory.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Overlay.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\Log.hpp" />
+    <ClInclude Include="Autoclicker\Autoclicker.hpp" />
     <ClInclude Include="GUI\CoGUI.hpp" />
     <ClInclude Include="GUI\Def.hpp" />
     <ClInclude Include="GUI\Draw\d2d1\D2D1_DRAW.hpp" />
@@ -192,6 +204,7 @@
     <ClInclude Include="GUI\Elements\TextEdit\TextEdit.hpp" />
     <ClInclude Include="GUI\Elements\TextLabel\TextLabel.hpp" />
     <ClInclude Include="GUI\IO\IO.hpp" />
+    <ClInclude Include="GUI\Memory\Memory.hpp" />
     <ClInclude Include="Header.hpp" />
     <ClInclude Include="Overlay.hpp" />
     <ClInclude Include="Tools.hpp" />
