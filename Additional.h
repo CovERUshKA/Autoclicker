@@ -209,9 +209,7 @@ inline BOOL GetCurDir(wchar_t* cBuf, DWORD size)
 		GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS,
 		(LPCTSTR)GetCurDir,
 		&hModule))
-	{
 		return FALSE;
-	}
 
 	if (!K32GetModuleFileNameExW(GetCurrentProcess(), hModule, cBuf, size))
 		return FALSE;
