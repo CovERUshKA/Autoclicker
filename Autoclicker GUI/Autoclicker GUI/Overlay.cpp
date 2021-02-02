@@ -2,29 +2,6 @@
 
 #define ErrorMessageBox(msg) MessageBoxA(overlayhWnd, msg, "Autoclicker - Error", MB_OK | MB_TOPMOST | MB_ICONERROR);
 
-enum ZBID
-{
-	ZBID_DEFAULT = 0,
-	ZBID_DESKTOP = 1,
-	ZBID_UIACCESS = 2,
-	ZBID_IMMERSIVE_IHM = 3,
-	ZBID_IMMERSIVE_NOTIFICATION = 4,
-	ZBID_IMMERSIVE_APPCHROME = 5,
-	ZBID_IMMERSIVE_MOGO = 6,
-	ZBID_IMMERSIVE_EDGY = 7,
-	ZBID_IMMERSIVE_INACTIVEMOBODY = 8,
-	ZBID_IMMERSIVE_INACTIVEDOCK = 9,
-	ZBID_IMMERSIVE_ACTIVEMOBODY = 10,
-	ZBID_IMMERSIVE_ACTIVEDOCK = 11,
-	ZBID_IMMERSIVE_BACKGROUND = 12,
-	ZBID_IMMERSIVE_SEARCH = 13,
-	ZBID_GENUINE_WINDOWS = 14,
-	ZBID_IMMERSIVE_RESTRICTED = 15,
-	ZBID_SYSTEM_TOOLS = 16,
-	ZBID_LOCK = 17,
-	ZBID_ABOVELOCK_UX = 18,
-};
-
 constexpr auto ID_CHOOSE_START_BUTTON = 1;
 constexpr auto ID_CHOOSE_EXECUTE_BUTTON = 2;
 constexpr auto ID_ADD_BUTTON = 3;
@@ -41,6 +18,8 @@ HWND inputhWnd;
 BOOL activate = FALSE;
 BOOL quit = FALSE;
 HWINSTA winSta;
+HANDLE hThread;
+DWORD dwThreadID;
 
 ID3D11Device* g_pd3dDevice;
 IDXGIDevice4* g_pdxgiDevice;
@@ -65,9 +44,18 @@ POINT curPos = { 0, 0 };
 POINT retCurPos = { 0, 0 };
 POINT ocurLast;
 
+DWORD tID;
+DWORD hWndThreadID;
+
+LARGE_INTEGER pFreq;
+LARGE_INTEGER pCount;
+DWORD rawFPS;
+DWORD FPS;
+
 BOOL CleanupDevices();
 
-template <class T> void  SafeReleasee(T** ppT)
+template <class T>
+void  SafeReleasee(T** ppT)
 {
 	if (*ppT)
 	{
@@ -86,92 +74,110 @@ HRESULT Overlay::Redraw()
 	HRESULT hr = S_OK;
 	wstring buf;
 
-	if (!activate)
-		return hr;
-
-	POINT offset = {};
-	hr = m_surface->BeginDraw(nullptr,
-		__uuidof(dc),
-		reinterpret_cast<void**>(&dc),
-		&offset);
-	if (FAILED(hr))
+	try
 	{
-		Log("Unable to m_surface->BeginDraw(nullptr,\
-			__uuidof(dc),\
-			reinterpret_cast<void**>(&dc),\
-			&offset)");
+		if (!activate)
+			return hr;
 
-		goto end;
+		POINT offset = {};
+		hr = m_surface->BeginDraw(nullptr,
+			__uuidof(dc),
+			reinterpret_cast<void**>(&dc),
+			&offset);
+		if (FAILED(hr))
+			throw exception("Unable to begin draw");
+
+		draw.pRenderTarget = dc;
+
+		dc->SetDpi(m_dpi.x,
+			m_dpi.y);
+
+		dc->SetTransform(D2D1::Matrix3x2F::Translation(offset.x * 96 / m_dpi.x,
+			offset.y * 96 / m_dpi.y));
+
+		dc->Clear();
+
+		COGUI::Render();
+
+		buf.clear();
+		buf.append(to_wstring((DWORD)GetActiveWindow()).c_str());
+		buf.append(L" ");
+		buf.append(to_wstring((DWORD)GetForegroundWindow()).c_str());
+		buf.append(L" ");
+		buf.append(to_wstring((DWORD)GetFocus()).c_str());
+		buf.append(L" ");
+		buf.append(to_wstring((DWORD)GetCapture()).c_str());
+		buf.append(L" ");
+		buf.append(to_wstring((DWORD)GetTopWindow(NULL)).c_str());
+		buf.append(L" ");
+		buf.append(to_wstring(io.mousePos.x).c_str());
+		buf.append(L" ");
+		buf.append(to_wstring(io.mousePos.y).c_str());
+
+		buf.append(L" ");
+		buf.append(to_wstring(ocurLast.x).c_str());
+		buf.append(L" ");
+		buf.append(to_wstring(ocurLast.y).c_str());
+
+		POINT pt;
+		if (!GetCursorPos(&pt))
+			Log("Unable to GetCursorPos");
+
+		buf.append(L" ");
+		buf.append(to_wstring(pt.x).c_str());
+		buf.append(L" ");
+		buf.append(to_wstring(pt.y).c_str());
+
+		CURSORINFO curInfo;
+
+		curInfo.cbSize = sizeof(CURSORINFO);
+
+		GetCursorInfo(&curInfo);
+
+		LARGE_INTEGER bufpCounter;
+
+		if (!pCount.QuadPart)
+			QueryPerformanceCounter(&pCount);
+
+		QueryPerformanceCounter(&bufpCounter);
+
+		if ((FLOAT)(bufpCounter.QuadPart - pCount.QuadPart) / (pFreq.QuadPart / 1000) < 1000)
+			rawFPS += 1;
+		else
+		{
+			pCount = bufpCounter;
+			FPS = rawFPS;
+			rawFPS = 0;
+		}
+
+		buf.append(L" ");
+		buf.append(to_wstring(FPS).c_str());
+
+		TextInformation textInfo;
+
+		textInfo.clip = true;
+		textInfo.color = COGUI::COGUI_COLOR(255, 255, 255);
+		textInfo.multiline = false;
+		textInfo.xAlign = 0;
+		textInfo.yAlign = 0;
+
+		draw.String({ 50, 50 }, textInfo, buf.c_str(), buf.length(), L"Consolas", 13);
+
+		if (curInfo.flags != CURSOR_SHOWING)
+			draw.Circle({ (FLOAT)pt.x, (FLOAT)pt.y }, 5, D2D1::ColorF(D2D1::ColorF::Red));
+
+		hr = m_surface->EndDraw();
+		if (FAILED(hr))
+			throw exception("Unable to m_surface->EndDraw()");
+
+		hr = m_device->Commit();
+		if (FAILED(hr))
+			throw exception("Unable to m_device->Commit()");
 	}
-
-	draw.pRenderTarget = dc;
-
-	dc->SetDpi(m_dpi.x,
-		m_dpi.y);
-	
-	dc->SetTransform(D2D1::Matrix3x2F::Translation(offset.x * 96 / m_dpi.x,
-		offset.y * 96 / m_dpi.y));
-
-	dc->Clear();
-
-	COGUI::Render();
-
-	buf.clear();
-	buf.append(to_wstring((DWORD)GetActiveWindow()).c_str());
-	buf.append(L" ");
-	buf.append(to_wstring((DWORD)GetForegroundWindow()).c_str());
-	buf.append(L" ");
-	buf.append(to_wstring((DWORD)GetFocus()).c_str());
-	buf.append(L" ");
-	buf.append(to_wstring((DWORD)GetCapture()).c_str());
-	buf.append(L" ");
-	buf.append(to_wstring((DWORD)GetTopWindow(NULL)).c_str());
-	buf.append(L" ");
-	buf.append(to_wstring(io.mousePos.x).c_str());
-	buf.append(L" ");
-	buf.append(to_wstring(io.mousePos.y).c_str());
-
-	buf.append(L" ");
-	buf.append(to_wstring(ocurLast.x).c_str());
-	buf.append(L" ");
-	buf.append(to_wstring(ocurLast.y).c_str());
-
-	POINT pt;
-	if (!GetCursorPos(&pt))
+	catch (const std::exception& e)
 	{
-		Log("Unable to GetCursorPos");
+		Log(e.what());
 	}
-
-	buf.append(L" ");
-	buf.append(to_wstring(pt.x).c_str());
-	buf.append(L" ");
-	buf.append(to_wstring(pt.y).c_str());
-
-	TextInformation textInfo;
-
-	textInfo.clip = true;
-	textInfo.color = COGUI::COGUI_COLOR(255, 255, 255);
-	textInfo.multiline = false;
-	textInfo.xAlign = 0;
-	textInfo.yAlign = 0;
-
-	draw.String({ 50, 50 }, textInfo, buf.c_str(), buf.length(), L"Consolas", 13);
-
-	hr = m_surface->EndDraw();
-	if (FAILED(hr))
-	{
-		Log("Unable to m_surface->EndDraw()");
-		goto end;
-	}
-
-	hr = m_device->Commit();
-	if (FAILED(hr))
-	{
-		Log("Unable to m_device->Commit()");
-		goto end;
-	}
-
-end:
 
 	return hr;
 }
@@ -184,124 +190,80 @@ HRESULT Initialize()
 	unsigned y;
 	HMONITOR monitor;
 
-	hr = D3D11CreateDevice(nullptr,
-		D3D_DRIVER_TYPE_HARDWARE,
-		nullptr,
-		D3D11_CREATE_DEVICE_BGRA_SUPPORT,
-		nullptr, 0,
-		D3D11_SDK_VERSION,
-		&g_pd3dDevice,
-		nullptr,
-		nullptr);
-	if (FAILED(hr))
+	try
 	{
-		Log("Unable to D3D11CreateDevice");
-		goto end;
-	}
+		hr = D3D11CreateDevice(nullptr,
+			D3D_DRIVER_TYPE_HARDWARE,
+			nullptr,
+			D3D11_CREATE_DEVICE_BGRA_SUPPORT,
+			nullptr, 0,
+			D3D11_SDK_VERSION,
+			&g_pd3dDevice,
+			nullptr,
+			nullptr);
+		if (FAILED(hr)) throw exception("Unable to D3D11CreateDevice");
 
-	hr = g_pd3dDevice->QueryInterface(&g_pdxgiDevice);
-	if (FAILED(hr))
+		hr = g_pd3dDevice->QueryInterface(&g_pdxgiDevice);
+		if (FAILED(hr)) throw exception("Unable to g_pd3dDevice->QueryInterface");
+
+		hr = D2D1CreateDevice(g_pdxgiDevice,
+			nullptr,
+			&d2Device);
+		if (FAILED(hr)) throw exception("Unable to D2D1CreateDevice");
+
+		hr = DCompositionCreateDevice3(
+			d2Device,
+			__uuidof(m_device),
+			reinterpret_cast<void**>(&m_device));
+		if (FAILED(hr)) throw exception("Unable to DCompositionCreateDevice3");
+
+		hr = m_device->CreateTargetForHwnd(overlayhWnd,
+			false,
+			&m_target);
+		if (FAILED(hr)) throw exception("Unable to m_device->CreateTargetForHwnd");
+
+		hr = m_device->CreateVisual(&m_visual);
+		if (FAILED(hr)) throw exception("Unable to m_device->CreateVisual");
+
+		if (!GetClientRect(overlayhWnd, &rect))
+			throw exception("Unable to GetClientRect");
+
+		hr = m_device->CreateSurface(rect.right - rect.left,
+			rect.bottom - rect.top,
+			DXGI_FORMAT_B8G8R8A8_UNORM,
+			DXGI_ALPHA_MODE_PREMULTIPLIED,
+			&m_surface);
+		if (FAILED(hr)) throw exception("Unable to m_device->CreateSurface");
+
+		hr = m_visual->SetContent(m_surface);
+		if (FAILED(hr)) throw exception("Unable to m_visual->SetContent");
+
+		hr = m_target->SetRoot(m_visual);
+		if (FAILED(hr)) throw exception("Unable to target->SetRoot");
+
+		hr = d2Device->CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_NONE,
+			&dc);
+		if (FAILED(hr)) throw exception("Unable to d2Device->CreateDeviceContext");
+
+		monitor = MonitorFromWindow(overlayhWnd,
+			MONITOR_DEFAULTTONEAREST);
+
+		hr = GetDpiForMonitor(monitor,
+			MDT_EFFECTIVE_DPI,
+			&x,
+			&y);
+		if (FAILED(hr)) throw exception("Unable to GetDpiForMonitor");
+
+		m_dpi.x = static_cast<float>(x);
+		m_dpi.y = static_cast<float>(y);
+		m_size.width = (rect.right - rect.left) * 96 / m_dpi.x;
+		m_size.height = (rect.bottom - rect.top) * 96 / m_dpi.y;
+	}
+	catch (const std::exception& e)
 	{
-		Log("Unable to g_pd3dDevice->QueryInterface");
-		goto end;
-	}
-	
-	hr = D2D1CreateDevice(g_pdxgiDevice,
-		nullptr,
-		&d2Device);
-	if (FAILED(hr))
-	{
-		Log("Unable to D2D1CreateDevice");
-		goto end;
-	}
-
-	hr = DCompositionCreateDevice3(
-		d2Device,
-		__uuidof(m_device),
-		reinterpret_cast<void**>(&m_device));
-	if (FAILED(hr))
-	{
-		Log("Unable to DCompositionCreateDevice3");
-		goto end;
-	}
-
-	hr = m_device->CreateTargetForHwnd(overlayhWnd,
-		false,
-		&m_target);
-	if (FAILED(hr))
-	{
-		Log("Unable to m_device->CreateTargetForHwnd");
-		goto end;
-	}
-
-	hr = m_device->CreateVisual(&m_visual);
-	if (FAILED(hr))
-	{
-		Log("Unable to m_device->CreateVisual");
-		goto end;
-	}
-
-	if (!GetClientRect(overlayhWnd,
-		&rect))
-	{
-		Log("Unable to GetClientRect");
-		goto end;
-	}
-
-	hr = m_device->CreateSurface(rect.right - rect.left,
-		rect.bottom - rect.top,
-		DXGI_FORMAT_B8G8R8A8_UNORM,
-		DXGI_ALPHA_MODE_PREMULTIPLIED,
-		&m_surface);
-	if (FAILED(hr))
-	{
-		Log("Unable to m_device->CreateSurface");
-		goto end;
-	}
-
-	hr = m_visual->SetContent(m_surface);
-	if (FAILED(hr))
-	{
-		Log("Unable to m_visual->SetContent");
-		goto end;
-	}
-
-	hr = m_target->SetRoot(m_visual);
-	if (FAILED(hr))
-	{
-		Log("Unable to target->SetRoot");
-		goto end;
-	}
-
-	hr = d2Device->CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_NONE,
-		&dc);
-	if (FAILED(hr))
-	{
-		Log("Unable to d2Device->CreateDeviceContext");
-		goto end;
-	}
-
-	monitor = MonitorFromWindow(overlayhWnd,
-		MONITOR_DEFAULTTONEAREST);
-	
-	hr = GetDpiForMonitor(monitor,
-		MDT_EFFECTIVE_DPI,
-		&x,
-		&y);
-	if (FAILED(hr))
-	{
-		Log("Unable to GetDpiForMonitor");
-		goto end;
-	}
-
-	m_dpi.x = static_cast<float>(x);
-	m_dpi.y = static_cast<float>(y);
-	m_size.width = (rect.right - rect.left) * 96 / m_dpi.x;
-	m_size.height = (rect.bottom - rect.top) * 96 / m_dpi.y;
-
-end:
-	if (FAILED(hr))
+		Log(e.what());
 		CleanupDevices();
+	}
 
 	return hr;
 }
@@ -406,70 +368,63 @@ BOOL Overlay::Init(HINSTANCE hInstance)
 {
 	ohInst = hInstance;
 
+	QueryPerformanceFrequency(&pFreq);
+
 	Log("Overlay initializing...");
 
-	ATOM pClass = OverlayRegisterClass(hInstance);
-	if (!pClass)
+	try
 	{
-		Log("Unable to register overlay class");
+		ATOM pClass = OverlayRegisterClass(hInstance);
+		if (!pClass)
+			throw exception("Unable to register overlay class");
+
+		Log("Window class initialized");
+
+		if (!ImmDisableIME(-1))
+			throw exception("Unable to disable IMM");
+
+		Log("IME disabled");
+
+		// Perform application initialization:
+		if (!InitInstance(hInstance, pClass, SW_SHOWNOACTIVATE))
+			return FALSE;
+
+		Log("Instance initialized");
+
+		hookLowLvlKeyboard = SetWindowsHookExA(WH_KEYBOARD_LL, LowLevelKeyboardProc, hInstance, NULL);
+		if (!hookLowLvlKeyboard)
+			throw exception("Unable to hook Low Lvl Keyboard");
+
+		if (!SetTimer(overlayhWnd,
+			1,
+			1000 / 70,
+			(TIMERPROC)TimerProc))
+			throw exception("Unable to create timer");
+
+		Log("Timer initialized");
+
+		RAWINPUTDEVICE Rid[2];
+
+		Rid[0].usUsagePage = HID_USAGE_PAGE_GENERIC;
+		Rid[0].usUsage = HID_USAGE_GENERIC_KEYBOARD;
+		Rid[0].dwFlags = RIDEV_INPUTSINK;
+		Rid[0].hwndTarget = overlayhWnd;
+
+		Rid[1].usUsagePage = HID_USAGE_PAGE_GENERIC;
+		Rid[1].usUsage = HID_USAGE_GENERIC_MOUSE;
+		Rid[1].dwFlags = RIDEV_INPUTSINK;
+		Rid[1].hwndTarget = overlayhWnd;
+
+		if (RegisterRawInputDevices(Rid, 2, sizeof(Rid[0])) == FALSE)
+			throw exception("Unable to register raw input devices.");
+
+		Log("Raw input devices registered");
+	}
+	catch (const std::exception& e)
+	{
+		Log(e.what());
 		return FALSE;
 	}
-
-	Log("Window class initialized");
-
-	if (!ImmDisableIME(0))
-	{
-		Log("Unable to disable IMM");
-		return FALSE;
-	}
-
-	Log("IME disabled");
-
-	// Perform application initialization:
-	if (!InitInstance(hInstance, pClass, SW_SHOW))
-	{
-		return FALSE;
-	}
-
-	Log("Instance initialized");
-
-	hookLowLvlKeyboard = SetWindowsHookExA(WH_KEYBOARD_LL, LowLevelKeyboardProc, hInstance, NULL);
-	if (!hookLowLvlKeyboard)
-	{
-		Log("Unable to hook Low Lvl Keyboard");
-		return FALSE;
-	}
-
-	if (!SetTimer(overlayhWnd,
-		1,
-		1000 / 70,
-		(TIMERPROC)TimerProc))
-	{
-		Log("Unable to create timer");
-		return FALSE;
-	}
-
-	Log("Timer initialized");
-	
-	RAWINPUTDEVICE Rid[2];
-
-	Rid[0].usUsagePage = HID_USAGE_PAGE_GENERIC;
-	Rid[0].usUsage = HID_USAGE_GENERIC_KEYBOARD;
-	Rid[0].dwFlags = RIDEV_INPUTSINK;
-	Rid[0].hwndTarget = overlayhWnd;
-
-	Rid[1].usUsagePage = HID_USAGE_PAGE_GENERIC;
-	Rid[1].usUsage = HID_USAGE_GENERIC_MOUSE;
-	Rid[1].dwFlags = RIDEV_INPUTSINK;
-	Rid[1].hwndTarget = overlayhWnd;
-
-	if (RegisterRawInputDevices(Rid, 2, sizeof(Rid[0])) == FALSE)
-	{
-		Log("Unable to register raw input devices.");
-		return FALSE;
-	}
-
-	Log("Raw input devices registered");
 
 	return TRUE;
 }
@@ -479,9 +434,12 @@ BOOL Overlay::Work()
 	MSG msg;
 	ZeroMemory(&msg, sizeof(msg));
 
-	while (GetMessage(&msg, nullptr, 0, 0))
+	tID = GetCurrentThreadId();
+
+	while (true)
 	{
-		DispatchMessage(&msg);
+		if (GetMessageA(&msg, nullptr, 0, 0))
+			DispatchMessage(&msg);
 	}
 
 	if (hookLowLvlKeyboard && !UnhookWindowsHookEx(hookLowLvlKeyboard))
@@ -509,38 +467,64 @@ BOOL Overlay::Toggle()
 
 	activate = !activate;
 
-	if (activate)
+	try
 	{
-		RECT cliprc = { retCurPos.x, retCurPos.y, retCurPos.x, retCurPos.y };
+		if (activate)
+		{
+			RECT cliprc = { retCurPos.x, retCurPos.y, retCurPos.x, retCurPos.y };
+			HWND frg = GetForegroundWindow();
 
-		D2D1_RECT_F rectf = D2D1::RectF(0, 0, m_size.width, m_size.height);
-		m_visual->SetClip(rectf);
-		
-		SetWindowLongPtrW(overlayhWnd, GWL_EXSTYLE, GetWindowLongPtrW(overlayhWnd, GWL_EXSTYLE) & ~WS_EX_TRANSPARENT);
+			D2D1_RECT_F rectf = D2D1::RectF(0, 0, m_size.width, m_size.height);
+			m_visual->SetClip(rectf);
 
-		SetFocus(overlayhWnd);
+			SetWindowLongPtrW(overlayhWnd, GWL_EXSTYLE, GetWindowLongPtrW(overlayhWnd, GWL_EXSTYLE) & ~WS_EX_TRANSPARENT);
+
+			hWndThreadID = GetWindowThreadProcessId(frg, 0);
+
+			HDESK hDesktop = OpenInputDesktop(0, FALSE, GENERIC_ALL);
+
+			if (!hDesktop)
+				Log("Unable to OpenInputDesktop");
+
+			if (hDesktop && hDesktop != GetThreadDesktop(GetCurrentThreadId()))
+				SetThreadDesktop(hDesktop);
+
+			GetCursorPos(&retCurPos);
+
+			if (!AttachThreadInput(tID, hWndThreadID, true))
+				Log("Unable to AttachThreadInput");
+		}
+		else
+		{
+			D2D1_RECT_F rectf = D2D1::RectF(0, 0, 0, 0);
+			hr = m_visual->SetClip(rectf);
+			if (FAILED(hr))
+				throw exception("Unable to m_visual->SetClip(rectf)");
+
+			hr = m_device->Commit();
+			if (FAILED(hr))
+				throw exception("Unable to m_device->Commit()");
+
+			HDESK hDesktop = OpenInputDesktop(0, FALSE, GENERIC_ALL);
+
+			if (!hDesktop)
+				Log("Unable to OpenInputDesktop");
+
+			if (hDesktop && hDesktop != GetThreadDesktop(GetCurrentThreadId()))
+				SetThreadDesktop(hDesktop);
+
+			SetCursorPos(retCurPos.x, retCurPos.y);
+
+			if (!AttachThreadInput(tID, hWndThreadID, false))
+				Log("Unable to de AttachThreadInput");
+
+			SetWindowLongPtrW(overlayhWnd, GWL_EXSTYLE, GetWindowLongPtrW(overlayhWnd, GWL_EXSTYLE) | WS_EX_TRANSPARENT);
+		}
 	}
-	else
+	catch (const std::exception& e)
 	{
-		D2D1_RECT_F rectf = D2D1::RectF(0, 0, 0, 0);
-		hr = m_visual->SetClip(rectf);
-		if (FAILED(hr))
-		{
-			Log("Unable to m_visual->SetClip(rectf)");
-			goto end;
-		}
-
-		hr = m_device->Commit();
-		if (FAILED(hr))
-		{
-			Log("Unable to m_device->Commit()");
-			goto end;
-		}
-
-		SetWindowLongPtrW(overlayhWnd, GWL_EXSTYLE, GetWindowLongPtrW(overlayhWnd, GWL_EXSTYLE) | WS_EX_TRANSPARENT);
+		Log(e.what());
 	}
-
-end:
 
 	return TRUE;
 }
@@ -604,67 +588,62 @@ ATOM Overlay::OverlayRegisterClass(HINSTANCE hInstance)
 BOOL Overlay::InitInstance(HINSTANCE hInstance, ATOM aClass, int nCmdShow)
 {
 	RECT desktop;
-	GetWindowRect(GetDesktopWindow(), &desktop);
 
-	const auto hpath = LoadLibraryW(L"user32.dll");
-	CreateWindowInBandEx pCreateWindowInBandEx = CreateWindowInBandEx(GetProcAddress(hpath, "CreateWindowInBandEx"));
-	if (!pCreateWindowInBandEx)
+	try
 	{
-		Log("Unable to get CreateWindowInBandEx");
+		if (!GetWindowRect(GetDesktopWindow(), &desktop))
+			throw exception("Unable to get dektop window size");
+
+		const auto hpath = LoadLibraryW(L"user32.dll");
+		CreateWindowInBandEx pCreateWindowInBandEx = CreateWindowInBandEx(GetProcAddress(hpath, "CreateWindowInBandEx"));
+		if (!pCreateWindowInBandEx)
+			throw exception("Unable to get CreateWindowInBandEx");
+
+		Log("CreateWindowInBandEx founded");
+
+		overlayhWnd = pCreateWindowInBandEx(WS_EX_NOACTIVATE | WS_EX_NOREDIRECTIONBITMAP | WS_EX_LAYERED | WS_EX_TRANSPARENT,
+			aClass,
+			oszTitle,
+			WS_POPUP,
+			0, 0, desktop.right, desktop.bottom,
+			NULL,
+			NULL,
+			hInstance,
+			LPVOID(aClass),
+			ZBID_UIACCESS,
+			0);
+
+		if (!overlayhWnd)
+			throw exception("Unable to create overlay window");
+
+		Log("Overlay window created");
+
+		if (FAILED(Initialize()))
+			throw exception("Unable to initialize");
+
+		Log("Drawing initialized");
+
+		if (FAILED(draw.Initialize(overlayhWnd)))
+			throw exception("Unable to initialize draw class");
+
+		if (!COGUI::Init(overlayhWnd, COGUIProc))
+			throw exception("Unable to initialize CoGUI");
+
+		COGUI::CreateElement(COGUI_RecordButton, L"Start", 25, 25, 100, 25, 0, ID_CHOOSE_START_BUTTON);
+		COGUI::CreateElement(COGUI_DropList, L"Execute", 25, 60, 100, 25, 0, ID_CHOOSE_EXECUTE_BUTTON);
+		COGUI::CreateElement(COGUI_Button, L"Add", 25, 110, 100, 25, 0, ID_ADD_BUTTON);
+		COGUI::CreateElement(COGUI_Table, L"", 25, 145, 200, 130, 0, ID_ACTIVE_MACROSSES_TABLE);
+		COGUI::CreateElement(COGUI_Button, L"Delete", 240, 145, 100, 25, 0, ID_DELETE_MACROS_BUTTON);
+
+		UpdateWindow(overlayhWnd);
+
+		ShowWindow(overlayhWnd, nCmdShow);
+	}
+	catch (const std::exception& e)
+	{
+		Log(e.what());
 		return FALSE;
 	}
-
-	Log("CreateWindowInBandEx founded");
-
-	overlayhWnd = pCreateWindowInBandEx(WS_EX_NOACTIVATE | WS_EX_NOREDIRECTIONBITMAP | WS_EX_LAYERED | WS_EX_TRANSPARENT,
-		aClass,
-		oszTitle,
-		WS_POPUP,
-		0, 0, desktop.right, desktop.bottom,
-		NULL,
-		NULL,
-		hInstance,
-		LPVOID(aClass),
-		ZBID_UIACCESS,
-		0);
-	
-	if (!overlayhWnd)
-	{
-		Log("Unable to create overlay window");
-		return FALSE;
-	}
-
-	Log("Overlay window created");
-
-	if (FAILED(Initialize()))
-	{
-		Log("Unable to initialize");
-		return FALSE;
-	}
-
-	Log("Drawing initialized");
-
-	if (FAILED(draw.Initialize(overlayhWnd)))
-	{
-		Log("Unable to initialize draw class");
-		return FALSE;
-	}
-
-	if (!COGUI::Init(overlayhWnd, COGUIProc))
-	{
-		Log("Unable to initialize CoGUI");
-		return FALSE;
-	}
-
-	COGUI::CreateElement(COGUI_RecordButton, L"Start", 25, 25, 100, 25, 0, ID_CHOOSE_START_BUTTON);
-	COGUI::CreateElement(COGUI_DropList, L"Execute", 25, 60, 100, 25, 0, ID_CHOOSE_EXECUTE_BUTTON);
-	COGUI::CreateElement(COGUI_Button, L"Add", 25, 110, 100, 25, 0, ID_ADD_BUTTON);
-	COGUI::CreateElement(COGUI_Table, L"", 25, 145, 200, 130, 0, ID_ACTIVE_MACROSSES_TABLE);
-	COGUI::CreateElement(COGUI_Button, L"Delete", 240, 145, 100, 25, 0, ID_DELETE_MACROS_BUTTON);
-
-	UpdateWindow(overlayhWnd);
-
-	ShowWindow(overlayhWnd, nCmdShow);
 
 	return TRUE;
 }
@@ -689,7 +668,7 @@ BOOL Overlay::COGUIProc(UINT elementID, UINT message, void* pStruct)
 	{
 	case ID_CHOOSE_EXECUTE_BUTTON:
 	{
-		DropListReceive dlreceive = *ReCa<DropListReceive*>(pStruct);
+		COGUI_DropListReceive dlreceive = *ReCa<COGUI_DropListReceive*>(pStruct);
 		switch (message)
 		{
 		case COGUI_DL_PREOPEN:
@@ -703,8 +682,11 @@ BOOL Overlay::COGUIProc(UINT elementID, UINT message, void* pStruct)
 			wstring path(lpCurDir);
 			path.append(L"\\*");
 
-			if ((hFind = FindFirstFileW(path.c_str(), &data)) != INVALID_HANDLE_VALUE) {
-				do {
+			if ((hFind = FindFirstFileW(path.c_str(), &data)) != INVALID_HANDLE_VALUE) 
+			{
+				do
+				{
+					// Idk what is this
 					if (wcscmp(data.cFileName, L".") == NULL
 						|| wcscmp(data.cFileName, L"..") == NULL)
 						continue;
@@ -712,7 +694,7 @@ BOOL Overlay::COGUIProc(UINT elementID, UINT message, void* pStruct)
 					wstring fileName = wstring(data.cFileName).substr(0, wcslen(data.cFileName) - 4).c_str();
 
 					if (wcslen(data.cFileName) > 4 && wstring(data.cFileName).compare(wcslen(data.cFileName) - 4, 4, L".txt") == NULL)
-						COGUI::AddDropListString(ID_CHOOSE_EXECUTE_BUTTON, (LPWCH)fileName.c_str(), fileName.length());
+						COGUI::AddDropListString(ID_CHOOSE_EXECUTE_BUTTON, fileName);
 
 				} while (FindNextFileW(hFind, &data) != 0);
 				FindClose(hFind);
@@ -731,7 +713,7 @@ BOOL Overlay::COGUIProc(UINT elementID, UINT message, void* pStruct)
 	break;
 	case ID_ADD_BUTTON:
 	{
-		COGUI::AddTableString(ID_ACTIVE_MACROSSES_TABLE, (LPWCH)L"Hello", 5);
+		COGUI::AddTableString(ID_ACTIVE_MACROSSES_TABLE, L"Hello");
 	}
 	break;
 	case ID_DELETE_MACROS_BUTTON:
@@ -771,18 +753,6 @@ LRESULT CALLBACK Overlay::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM
 
 		if (!GetRawInputData((HRAWINPUT)lParam, RID_INPUT, &rw, &sz, sizeof(RAWINPUTHEADER)))
 			break;
-
-		/*if (rw.header.dwType == RIM_TYPEMOUSE)
-		{
-			switch (rw.data.mouse.usButtonFlags)
-			{
-			case RI_MOUSE_BUTTON_1_DOWN:
-				return 1;
-				break;
-			default:
-				break;
-			}
-		}*/
 
 		if (rw.header.dwType == RIM_TYPEMOUSE)
 		{
@@ -845,8 +815,13 @@ LRESULT CALLBACK Overlay::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM
 		}
 	}
 		break;
+	case WM_SETCURSOR:
+		SetCursor(LoadCursor(NULL, IDC_CROSS));
+		return 1;
 	case WM_NCHITTEST:
 		return HTCLIENT;
+	case WM_MOUSEACTIVATE:
+		return MA_NOACTIVATE;
 	case WM_HOTKEY:
 	{
 		switch (wParam)

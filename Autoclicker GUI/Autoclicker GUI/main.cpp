@@ -1,14 +1,20 @@
 #include "Header.hpp"
 
-constexpr auto ID_CHOOSE_START_BUTTON = 1;
-constexpr auto ID_CHOOSE_EXECUTE_BUTTON = 2;
-constexpr auto ID_ADD_BUTTON = 3;
-constexpr auto ID_ACTIVE_MACROSSES_TABLE = 4;
-constexpr auto ID_DELETE_MACROS_BUTTON = 5;
+constexpr auto ID_CLICK_METHOD_DROPLIST = 1;
+constexpr auto ID_CHOOSE_START_BUTTON = 2;
+constexpr auto ID_CHOOSE_EXECUTE_BUTTON = 3;
+constexpr auto ID_SWITCH_METHOD_BUTTON = 4;
+constexpr auto ID_CLICK_REPEAT_DROPLIST = 5;
+constexpr auto ID_CLICK_COUNT_TEXTEDIT = 6;
+constexpr auto ID_ADD_BUTTON = 7;
+constexpr auto ID_ACTIVE_MACROSSES_TABLE = 8;
+constexpr auto ID_DELETE_MACROS_BUTTON = 9;
 
 D2D1_DRAW draw;
 IO io;
 IO overlayIo;
+Memory memory;
+Autoclicker autoclicker;
 
 // Global Variables:
 HINSTANCE hInst;                                // current instance
@@ -22,55 +28,14 @@ HHOOK hooklowLvlKeyboard;
 FLOAT pos = 1.0f;
 POINT curLast;
 
-struct ExecuteInfo
-{
-	UINT key = 0;
-
-	wstring wchMacrosName;
-};
-
-struct
-{
-	INT cActives;
-
-	LPCH sButton;
-	ExecuteInfo* eInfo;
-} actives;
-
 RecordButtonReceive startButton;
-
-DropListReceive executeButton;
+RecordButtonReceive executeButton;
 
 ATOM                MyRegisterClass(HINSTANCE hInstance);
 BOOL                InitInstance(HINSTANCE, int);
 LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
 
 BOOL COGUIProc(UINT elementID, UINT message, void* pStruct);
-
-BOOL AddActive(CHAR sButton, ExecuteInfo eInfo)
-{
-	LPCH _sButton = new CHAR[actives.cActives + 1];
-	ExecuteInfo* _eInfo = new ExecuteInfo[actives.cActives + 1];
-
-	memcpy_s(_sButton, sizeof(CHAR) * actives.cActives, actives.sButton, sizeof(CHAR) * actives.cActives);
-	memcpy_s(_eInfo, sizeof(ExecuteInfo) * actives.cActives, actives.eInfo, sizeof(ExecuteInfo) * actives.cActives);
-
-	_sButton[actives.cActives] = sButton;
-	_eInfo[actives.cActives] = eInfo;
-
-	LPCH __sButton = actives.sButton;
-	ExecuteInfo* __eInfo = actives.eInfo;
-
-	actives.sButton = _sButton;
-	actives.eInfo = _eInfo;
-
-	actives.cActives += 1;
-
-	delete[] __sButton;
-	delete[] __eInfo;
-
-	return TRUE;
-}
 
 int FPS = 0;
 int bufFPS = 0;
@@ -79,19 +44,12 @@ LONGLONG lastCheck = 0;
 HRESULT Redraw()
 {
 	if (minimized)
-	{
-		Sleep(1);
 		return NULL;
-	}
 
 	if (pos == 100)
-	{
 		pos = 1;
-	}
 	else
-	{
 		pos = 1;
-	}
 
 	HRESULT hr = draw.BeginDraw(0.17f, 0.17f, 0.17f);
 	if (FAILED(hr))
@@ -157,7 +115,6 @@ HRESULT Redraw()
 	textInfo.yAlign = 0;
 	
 	draw.String({ pos, wndSize.height - 30 }, textInfo, buf.c_str(), buf.length(), L"Consolas", 13);
-	//draw.String({ 1.0f, 20.0f }, { 1, 1, 1, 1 }, buf.c_str(), buf.length(), L"Consolas", 13, 0);
 
 	hr = draw.EndDraw();
 	if (FAILED(hr))
@@ -174,154 +131,132 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 	UNREFERENCED_PARAMETER(hPrevInstance);
 	UNREFERENCED_PARAMETER(lpCmdLine);
 
-	// TODO: Place code here.
 	Log("Autoclicker started");
 
 	HANDLE hToken;
-	if (!OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &hToken))
-	{
-		Log("Unable to query process token");
-		return FALSE;
-	}
-
 	TOKEN_ELEVATION tElevation = { 0 };
-	DWORD dwLength;
-
-	if (!GetTokenInformation(hToken, TokenElevation, &tElevation, sizeof(tElevation), &dwLength))
-	{
-		Log("Unable to get token information");
-		CloseHandle(hToken);
-		return FALSE;
-	}
-
-	if (!tElevation.TokenIsElevated)
-	{
-		Log("Not elevated");
-		CloseHandle(hToken);
-		return FALSE;
-	}
-
-	Log("Token is elevated");
-
-	DWORD UIAccess;
-
-	if (!GetTokenInformation(hToken, TokenUIAccess, &UIAccess, sizeof(UIAccess), &dwLength))
-	{
-		Log("Unable to get token information about UIAccess");
-		CloseHandle(hToken);
-		return FALSE;
-	}
-
-	if (!UIAccess)
-		Log("No UIAccess");
-	else
-		Log("UIAccess granted");
-
-	DWORD sID;
-
-	if (!GetTokenInformation(hToken, TokenSessionId, &sID,
-		sizeof(sID), &dwLength))
-	{
-		Log("GetTokenInformation Error");
-		return FALSE;
-	}
-	if (!sID)
-	{
-		Log("0 Session ID error");
-		CloseHandle(hToken);
-		return FALSE;
-	}
-
-	Log("Not 0 session ID");
-
-	CloseHandle(hToken);
-	
-	if (Overlay::AlreadyRunning())
-	{
-		Log("Autoclicker already started");
-		return FALSE;
-	}
-
-	if (UIAccess && Overlay::Init(hInstance))
-	{
-		Log("Overlay initialized");
-		return Overlay::Work();
-	}
-
-	//if (FindWindowW(szWindowClass, NULL))
-		//return FALSE;
-
-	if (!MyRegisterClass(hInstance))
-	{
-		Log("Unable to register window class");
-		return FALSE;
-	}
-
-	// Perform application initialization:
-	if (!InitInstance(hInstance, nCmdShow))
-		return FALSE;
-	
-	if (FAILED(draw.Initialize(mainhWnd)))
-	{
-		Log("Unable to initialize draw class");
-		return FALSE;
-	}
-
-	if (!COGUI::Init(mainhWnd, COGUIProc))
-	{
-		Log("Unable to initialize CoGUI");
-		return FALSE;
-	}
-
-	COGUI::CreateElement(COGUI_MinimizeButton, L"", 0, 0, 0, 0, 0, -1);
-	COGUI::CreateElement(COGUI_ScaleButton, L"", 0, 0, 0, 0, 0, -1);
-	COGUI::CreateElement(COGUI_CloseButton, L"", 0, 0, 0, 0, 0, -1);
-	
-	COGUI::CreateElement(COGUI_RecordButton, L"Start", 25, 25, 100, 25, 0, ID_CHOOSE_START_BUTTON);
-	COGUI::CreateElement(COGUI_DropList, L"Execute", 25, 60, 100, 25, 0, ID_CHOOSE_EXECUTE_BUTTON);
-	COGUI::CreateElement(COGUI_Button, L"Add", 25, 110, 100, 25, 0, ID_ADD_BUTTON);
-	COGUI::CreateElement(COGUI_Table, L"", 25, 145, 200, 130, 0, ID_ACTIVE_MACROSSES_TABLE);
-	COGUI::CreateElement(COGUI_Button, L"Delete", 240, 145, 100, 25, 0, ID_DELETE_MACROS_BUTTON);
-
-	keyboardLayout = LoadKeyboardLayoutA("00000400", KLF_SETFORPROCESS);
-
-	Redraw();
-
-	SetTimer(mainhWnd,
-		1,
-		1000 / 70,
-		(TIMERPROC)NULL);
-
+	DWORD dwLength, UIAccess, sID;
 	RAWINPUTDEVICE Rid[2];
-
-	Rid[0].usUsagePage = HID_USAGE_PAGE_GENERIC;
-	Rid[0].usUsage = HID_USAGE_GENERIC_KEYBOARD;
-	Rid[0].dwFlags = RIDEV_INPUTSINK;
-	Rid[0].hwndTarget = mainhWnd;
-
-	Rid[1].usUsagePage = HID_USAGE_PAGE_GENERIC;
-	Rid[1].usUsage = HID_USAGE_GENERIC_MOUSE;
-	Rid[1].dwFlags = RIDEV_INPUTSINK;
-	Rid[1].hwndTarget = mainhWnd;
-
-	if (RegisterRawInputDevices(Rid, 2, sizeof(Rid[0])) == FALSE)
-	{
-		Log("Unable to register raw input devices.");
-		return FALSE;
-	}
 
 	MSG msg;
 	ZeroMemory(&msg, sizeof(msg));
 
-	while (GetMessageA(&msg, nullptr, 0, 0))
+	try
 	{
-		DispatchMessage(&msg);
-	}
+		if (!OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &hToken))
+			throw exception("Unable to query process token");
 
-	if (hooklowLvlKeyboard && !UnhookWindowsHookEx(hooklowLvlKeyboard))
+		if (!GetTokenInformation(hToken, TokenElevation, &tElevation, sizeof(tElevation), &dwLength))
+			throw exception("Unable to get token information");
+
+		if (!tElevation.TokenIsElevated)
+			throw exception("Not elevated");
+
+		Log("Token is elevated");
+
+		if (!GetTokenInformation(hToken, TokenUIAccess, &UIAccess, sizeof(UIAccess), &dwLength))
+			throw exception("Unable to get token information about UIAccess");
+
+		if (!UIAccess)
+			Log("No UIAccess");
+		else
+			Log("UIAccess granted");
+
+		if (!GetTokenInformation(hToken, TokenSessionId, &sID,
+			sizeof(sID), &dwLength))
+			throw exception("GetTokenInformation Error");
+		if (!sID)
+			throw exception("0 Session ID error");
+
+		Log("Not 0 session ID");
+
+		CloseHandle(hToken);
+
+		if (Overlay::AlreadyRunning())
+			throw exception("Autoclicker already started");
+
+		if (UIAccess && Overlay::Init(hInstance))
+		{
+			Log("Overlay initialized");
+			return Overlay::Work();
+		}
+
+		if (FindWindowW(szWindowClass, NULL))
+			return FALSE;
+
+		if (!MyRegisterClass(hInstance))
+			throw exception("Unable to register window class");
+
+		// Perform application initialization:
+		if (!InitInstance(hInstance, nCmdShow))
+			return FALSE;
+
+		// Initialize draw class
+		if (FAILED(draw.Initialize(mainhWnd)))
+			throw exception("Unable to initialize draw class");
+
+		// Initialize COGUI
+		if (!COGUI::Init(mainhWnd, COGUIProc))
+			throw exception("Unable to initialize CoGUI");
+
+		COGUI::CreateElement(COGUI_MinimizeButton, L"", 0, 0, 0, 0, 0, -1);
+		COGUI::CreateElement(COGUI_ScaleButton, L"", 0, 0, 0, 0, 0, -1);
+		COGUI::CreateElement(COGUI_CloseButton, L"", 0, 0, 0, 0, 0, -1);
+
+		COGUI::CreateElement(COGUI_DropList, L"", 25, 25, 100, 25, 0, ID_CLICK_METHOD_DROPLIST);
+		COGUI::CreateElement(COGUI_RecordButton, L"Start", 25, 60, 100, 25, 0, ID_CHOOSE_START_BUTTON);
+		COGUI::CreateElement(COGUI_RecordButton, L"Execute", 25, 95, 100, 25, 0, ID_CHOOSE_EXECUTE_BUTTON);
+		COGUI::CreateElement(COGUI_DropList, L"", 25, 130, 100, 25, 0, ID_CLICK_REPEAT_DROPLIST);
+		COGUI::CreateElement(COGUI_TextEdit, L"", 135, 130, 100, 25, 0, ID_CLICK_COUNT_TEXTEDIT);
+		COGUI::CreateElement(COGUI_Button, L"Add", 25, 165, 100, 25, 0, ID_ADD_BUTTON);
+		COGUI::CreateElement(COGUI_Table, L"", 25, 200, 300, 130, 0, ID_ACTIVE_MACROSSES_TABLE);
+		COGUI::CreateElement(COGUI_Button, L"Delete", 340, 200, 100, 25, 0, ID_DELETE_MACROS_BUTTON);
+
+		COGUI::AddDropListString(ID_CLICK_METHOD_DROPLIST, L"SendInput");
+		COGUI::AddDropListString(ID_CLICK_METHOD_DROPLIST, L"SendMessage");
+
+		COGUI::AddDropListString(ID_CLICK_REPEAT_DROPLIST, L"Once");
+		COGUI::AddDropListString(ID_CLICK_REPEAT_DROPLIST, L"Count");
+		COGUI::AddDropListString(ID_CLICK_REPEAT_DROPLIST, L"Toggle");
+		COGUI::AddDropListString(ID_CLICK_REPEAT_DROPLIST, L"WhileHolding");
+
+		keyboardLayout = LoadKeyboardLayoutA("00000400", KLF_SETFORPROCESS);
+
+		Redraw();
+
+		if (!SetTimer(mainhWnd,
+			1,
+			1000 / 70,
+			0))
+			throw exception("Unable to create timer");
+
+		Rid[0].usUsagePage = HID_USAGE_PAGE_GENERIC;
+		Rid[0].usUsage = HID_USAGE_GENERIC_KEYBOARD;
+		Rid[0].dwFlags = RIDEV_INPUTSINK;
+		Rid[0].hwndTarget = mainhWnd;
+
+		Rid[1].usUsagePage = HID_USAGE_PAGE_GENERIC;
+		Rid[1].usUsage = HID_USAGE_GENERIC_MOUSE;
+		Rid[1].dwFlags = RIDEV_INPUTSINK;
+		Rid[1].hwndTarget = mainhWnd;
+
+		if (RegisterRawInputDevices(Rid, 2, sizeof(Rid[0])) == FALSE)
+			throw exception("Unable to register raw input devices.");
+
+		while (GetMessageA(&msg, nullptr, 0, 0))
+		{
+			TranslateMessage(&msg);
+			DispatchMessage(&msg);
+		}
+
+		if (hooklowLvlKeyboard && !UnhookWindowsHookEx(hooklowLvlKeyboard))
+			throw exception("Unable to unhook Low Level Keyboard Hook");
+	}
+	catch (const std::exception& e)
 	{
-		Log("Unable to unhook Low Level Keyboard Hook");
-		return EXIT_FAILURE;
+		Log(e.what());
+		if (hToken) CloseHandle(hToken);
+		return FALSE;
 	}
 
 	return (int)msg.wParam;
@@ -394,71 +329,39 @@ BOOL COGUIProc(UINT elementID, UINT message, void* pStruct)
 		break;
 	case ID_CHOOSE_EXECUTE_BUTTON:
 	{
-		DropListReceive dlreceive = *ReCa<DropListReceive*>(pStruct);
-		switch (message)
-		{
-		case COGUI_DL_PREOPEN:
-		{
-			WIN32_FIND_DATAW data;
-			HANDLE hFind;
-
-			wchar_t lpCurDir[MAX_PATH];
-			GetCurDir(lpCurDir, MAX_PATH);
-
-			wstring path(lpCurDir);
-			path.append(L"\\*");
-
-			hFind = FindFirstFileW(path.c_str(), &data);
-
-			if (hFind == INVALID_HANDLE_VALUE)
-			{
-				Log("Unable to find first file");
-				return FALSE;
-			}
-
-			do {
-				if (wcscmp(data.cFileName, L".") == NULL
-					|| wcscmp(data.cFileName, L"..") == NULL)
-					continue;
-
-				wstring fileName = wstring(data.cFileName).substr(0, wcslen(data.cFileName) - 4).c_str();
-
-				if (wcslen(data.cFileName) > 4 && wstring(data.cFileName).compare(wcslen(data.cFileName) - 4, 4, L".txt") == NULL)
-					COGUI::AddDropListString(ID_CHOOSE_EXECUTE_BUTTON, (LPWCH)fileName.c_str(), fileName.length());
-
-			} while (FindNextFileW(hFind, &data) != 0);
-			FindClose(hFind);
-		}
-			break;
-		case COGUI_DL_POSTCLOSE:
-		{
-			COGUI::ClearDropList(ID_CHOOSE_EXECUTE_BUTTON);
-		}
-			break;
-		case COGUI_DL_CHOOSE:
-		{
-			executeButton = dlreceive;
-		}
-		break;
-		default:
-			break;
-		}
+		RecordButtonReceive rbreceive = *ReCa<RecordButtonReceive*>(pStruct);
+		executeButton = rbreceive;
 	}
 		break;
 	case ID_ADD_BUTTON:
 	{
+		if (startButton.strLength == NULL
+			|| executeButton.strLength == NULL)
+			break;
+		
 		wstring buf;
+		buf.append(COGUI::GetDropListSelectedLineName(ID_CLICK_METHOD_DROPLIST));
+		buf.append(L" ");
 		buf.append(startButton.pStr);
 		buf.append(L" ");
 		buf.append(executeButton.pStr);
-		COGUI::AddTableString(ID_ACTIVE_MACROSSES_TABLE, (LPWCH)buf.c_str(), buf.length());
+		buf.append(L" ");
+		buf.append(COGUI::GetDropListSelectedLineName(ID_CLICK_REPEAT_DROPLIST));
+		COGUI::AddTableString(ID_ACTIVE_MACROSSES_TABLE, (LPWCH)buf.c_str());
 
-		AddActive(startButton.key, { NULL, executeButton.pStr });
+		autoclicker.Add({ startButton.key, executeButton.key, 0, (ClickMethod)COGUI::GetDropListSelectedLine(ID_CLICK_METHOD_DROPLIST), (ClickRepeat)COGUI::GetDropListSelectedLine(ID_CLICK_REPEAT_DROPLIST), 1});
 	}
 		break;
 	case ID_DELETE_MACROS_BUTTON:
 	{
-		COGUI::DeleteTableLine(ID_ACTIVE_MACROSSES_TABLE, COGUI::GetTableSelectedLine(ID_ACTIVE_MACROSSES_TABLE));
+		DWORD lNum = COGUI::GetTableSelectedLine(ID_ACTIVE_MACROSSES_TABLE);
+		
+		if (lNum != -1)
+		{
+			COGUI::DeleteTableLine(ID_ACTIVE_MACROSSES_TABLE, lNum);
+
+			autoclicker.Remove(lNum);
+		}
 	}
 		break;
 	default:
@@ -531,18 +434,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			return HTCLIENT;
 	}
 		break;
-	case WM_TIMER:
-	{
-		switch (wParam)
-		{
-		case 1:
-			Redraw();
-			break;
-		default:
-			break;
-		}
-	}
-		break;
 	case WM_ERASEBKGND:
 		return 1;
 	case WM_NCCALCSIZE:
@@ -572,6 +463,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		}
 	}
 	break;
+	case WM_TIMER:
+		Redraw();
+		break;
 	case WM_SIZE:
 		if (wParam != SIZE_MINIMIZED)
 		{
@@ -608,7 +502,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		Redraw();
 		break;
 	case WM_DESTROY:
-		Overlay::Destroy();
 		draw.CleanupDeviceD2D();
 		PostQuitMessage(0);
 		break;
