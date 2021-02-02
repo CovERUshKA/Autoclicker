@@ -24,8 +24,8 @@ public:
 
 	vector<wstring> vecLineNames;
 
-	BOOL Render();
-	BOOL ApplyMessage(LPVOID lpCOGUIWndProc);
+	BOOL Render() override;
+	BOOL ApplyMessage(LPVOID lpCOGUIWndProc) override;
 };
 
 #endif
