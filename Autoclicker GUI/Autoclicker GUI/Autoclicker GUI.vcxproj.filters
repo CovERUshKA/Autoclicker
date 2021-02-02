@@ -137,9 +137,6 @@
     <ClInclude Include="GUI\Elements\Table\Table.hpp">
       <Filter>GUI\Elements\Table</Filter>
     </ClInclude>
-    <ClInclude Include="GUI\Elements\ID.hpp">
-      <Filter>GUI\Elements</Filter>
-    </ClInclude>
     <ClInclude Include="GUI\IO\IO.hpp">
       <Filter>GUI\IO</Filter>
     </ClInclude>
@@ -196,6 +193,9 @@
     </ClInclude>
     <ClInclude Include="Autoclicker\Autoclicker.hpp">
       <Filter>Autoclicker</Filter>
+    </ClInclude>
+    <ClInclude Include="Def.hpp">
+      <Filter>Файлы заголовков</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

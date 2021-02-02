@@ -187,6 +187,7 @@
   <ItemGroup>
     <ClInclude Include="..\..\Log.hpp" />
     <ClInclude Include="Autoclicker\Autoclicker.hpp" />
+    <ClInclude Include="Def.hpp" />
     <ClInclude Include="GUI\CoGUI.hpp" />
     <ClInclude Include="GUI\Def.hpp" />
     <ClInclude Include="GUI\Draw\d2d1\D2D1_DRAW.hpp" />
@@ -198,7 +199,6 @@
     <ClInclude Include="GUI\Elements\Header\CloseButton\CloseButton.hpp" />
     <ClInclude Include="GUI\Elements\Header\MinimizeButton\MinimizeButton.hpp" />
     <ClInclude Include="GUI\Elements\Header\ScaleButton\ScaleButton.hpp" />
-    <ClInclude Include="GUI\Elements\ID.hpp" />
     <ClInclude Include="GUI\Elements\RecordButton\RecordButton.hpp" />
     <ClInclude Include="GUI\Elements\Table\Table.hpp" />
     <ClInclude Include="GUI\Elements\TextEdit\TextEdit.hpp" />
