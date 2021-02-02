@@ -185,6 +185,17 @@ BOOL COGUI::ShowElement(INT elementID, bool bVisible)
 	return TRUE;
 }
 
+BOOL COGUI::IsActive(INT elementID)
+{
+	if (elements.activeID != -1
+		&& elementID == elements.activeID)
+	{
+		return TRUE;
+	}
+
+	return FALSE;
+}
+
 BOOL COGUI::Render()
 {
 	TRACKMOUSEEVENT tme;
@@ -199,7 +210,7 @@ BOOL COGUI::Render()
 		bool visible = false;
 		INT ID = GetID(elements.lpBuffer[i]);
 		
-		if (ID != elements.activeID
+		if (!IsActive(ID)
 			&& IsVisible(ID, &visible)
 			&& visible)
 			COGUI::Routine(COGUI_RENDER, (LPARAM)elements.lpBuffer[i]);
@@ -280,10 +291,8 @@ void IO()
 	{
 		bool visible = false;
 
-		if (!COGUI::IsVisible(elements.activeID, &visible))
-			return;
-
-		if (visible)
+		if (COGUI::IsVisible(elements.activeID, &visible)
+			&& visible)
 			COGUI::Routine(COGUI_INPUT, (LPARAM)GetElement(elements.activeID));
 
 		return;
@@ -294,10 +303,7 @@ void IO()
 		bool visible = false;
 		INT elementID = COGUI::GetID(elements.lpBuffer[i]);
 		if (elementID == NULL
-			&& elementID != elements.activeID)
-			continue;
-
-		if (!COGUI::IsVisible(elementID, &visible))
+			|| !COGUI::IsVisible(elementID, &visible))
 			continue;
 
 		if (visible)
@@ -405,7 +411,7 @@ BOOL AddElement(void* pElement, UINT elementSize)
 
 	try
 	{
-		elements.lpBuffer.push_back((Element*)memory.Alloc(sizeof(BYTE) * elementSize));
+		elements.lpBuffer.push_back((Element*)memory.Alloc(elementSize));
 
 		result = memcpy_s(elements.lpBuffer[elements.lpBuffer.size() - 1], elementSize, pElement, elementSize);
 		if (result != NULL)
@@ -464,10 +470,10 @@ BOOL COGUI::Routine(DWORD dwMessageID, LPARAM lParam)
 		switch (dwMessageID)
 		{
 		case COGUI_RENDER:
-			lpElement->Render();
+			bRet = lpElement->Render();
 			break;
 		case COGUI_INPUT:
-			lpElement->ApplyMessage(lpCOGUIWndProc);
+			bRet = lpElement->ApplyMessage(lpCOGUIWndProc);
 			break;
 		default:
 			break;
@@ -511,7 +517,7 @@ BOOL COGUI::Routine(DWORD dwMessageID, LPARAM lParam)
 		break;
 	}
 
-	return TRUE;
+	return bRet;
 }
 
 BOOL COGUI::Init(HWND _hWnd, LPVOID lpfnCOGUIWndProc)

@@ -40,6 +40,7 @@ namespace COGUI
 	BOOL       CreateElement(UINT elementID, LPCWSTR lpElementName, FLOAT x, FLOAT y, FLOAT nWidth, FLOAT nHeight, UINT uiParams, INT ID);
 	BOOL       Render();
 	BOOL       IsVisible(INT elementID, bool* lpBool);
+	BOOL       IsActive(INT elementID);
 	BOOL       ShowElement(INT elementID, bool bVisible);
 	INT        GetID(Element* lpElement);
 	INT        GetElementType(Element* lpElement);
