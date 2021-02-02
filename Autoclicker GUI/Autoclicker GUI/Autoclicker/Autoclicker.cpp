@@ -373,8 +373,6 @@ DWORD WINAPI Work(LPVOID lpvoid)
 			break;
 		}
 
-	end:
-
 		Sleep(5);
 	}
 
