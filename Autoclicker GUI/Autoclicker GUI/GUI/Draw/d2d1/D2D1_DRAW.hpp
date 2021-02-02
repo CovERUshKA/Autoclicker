@@ -50,6 +50,7 @@ public:
 	HRESULT CreateGraphicsResources();
 	VOID DiscardGraphicsResources();
 
+	HRESULT BeginDraw(D2D1_COLOR_F color);
 	HRESULT BeginDraw(FLOAT r, FLOAT g, FLOAT b, FLOAT a = 1.0f);
 	HRESULT EndDraw();
 

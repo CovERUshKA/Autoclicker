@@ -380,6 +380,23 @@ HRESULT D2D1_DRAW::EndDraw()
 	return hr;
 }
 
+HRESULT D2D1_DRAW::BeginDraw(D2D1_COLOR_F color)
+{
+	HRESULT hr = CreateGraphicsResources();
+	if (FAILED(hr))
+		return hr;
+
+	BeginPaint(m_hwnd, &ps);
+
+	pRenderTarget->BeginDraw();
+	//pRenderTarget->GetSize().width;
+	pRenderTarget->SetTransform(D2D1::IdentityMatrix());
+
+	pRenderTarget->Clear(color);
+
+	return hr;
+}
+
 HRESULT D2D1_DRAW::BeginDraw(FLOAT r, FLOAT g, FLOAT b, FLOAT a)
 {
 	HRESULT hr = CreateGraphicsResources();
