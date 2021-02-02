@@ -71,7 +71,7 @@ BOOL ScaleButton::Render()
 
 ScaleButton::ScaleButton()
 {
-	elementID = COGUI_ScaleButton;
+	type = COGUI_ScaleButton;
 
 	pressed = false;
 

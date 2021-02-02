@@ -11,9 +11,9 @@ BOOL DropList::ApplyMessage(LPVOID COGUIWndProc)
 		{ x + width, y + height });
 
 	BOOL curInFieldDropList = io.CursorInField({ x, y + height },
-		{ x + width, y + height + dListHeight });
+		{ x + width, y + height + fDropListHeight });
 
-	DropListReceive dlreceive;
+	COGUI_DropListReceive dlreceive;
 
 	switch (io.keys[VK_LBUTTON][1])
 	{
@@ -38,19 +38,19 @@ BOOL DropList::ApplyMessage(LPVOID COGUIWndProc)
 		else if (curInFieldDropList
 				&& opened)
 		{
-			for (UINT i = 0; i < dListHeight / lHeight; i++)
+			for (UINT i = 0; i < fDropListHeight / fLineHeight; i++)
 			{
-				if (activeLine + i == cFileNames)
+				if (activeLine + i == vecLineNames.size())
 					break;
 
-				if (io.CursorInField({ x, y + height + (lHeight * i) },
-					{ x + width, y + height + (lHeight * (i + 1)) }))
+				if (io.CursorInField({ x, y + height + (fLineHeight * i) },
+					{ x + width, y + height + (fLineHeight * (i + 1)) }))
 				{
-					dlreceive.pStr = pFileNames[i];
+					dlreceive.pStr = vecLineNames[i];
+					selectedLine = i;
 					lpCOGUIWndProc(ID, COGUI_DL_CHOOSE, &dlreceive);
 
-					wchElementName = pFileNames[i];
-					strLength = lFileNames[i];
+					wchElementName = vecLineNames[i];
 					
 					opened = false;
 					COGUI::SetActiveElementID(-1);
@@ -83,7 +83,7 @@ BOOL DropList::ApplyMessage(LPVOID COGUIWndProc)
 	{
 	case DOWN:
 	{
-		if (cFileNames - activeLine > 1)
+		if (vecLineNames.size() - activeLine > 1)
 		{
 			activeLine += 1;
 		}
@@ -109,25 +109,28 @@ BOOL DropList::Render()
 
 	draw.Rectangle({ x, y }, width, height, COGUI::COGUI_COLOR(50, 50, 50));
 
-	draw.String({ x, y }, textInfo, wchElementName.c_str(), strLength, FONT_NAME, FONT_SIZE, { width, height });
+	if (vecLineNames.size() != 0)
+	{
+		draw.String({ x, y }, textInfo, vecLineNames[selectedLine].c_str(), vecLineNames[selectedLine].length(), FONT_NAME, FONT_SIZE, { width, height });
+	}
 
 	if (!opened)
 		return TRUE;
 
-	draw.Rectangle({ x, y + height }, width, dListHeight, COGUI::COGUI_COLOR(50, 50, 50));
+	draw.Rectangle({ x, y + height }, width, fDropListHeight, COGUI::COGUI_COLOR(50, 50, 50));
 
-	draw.Line({ x + 1, y + height }, { x + 1, y + height + dListHeight }, 1, COGUI::COGUI_COLOR(80, 80, 80));
-	draw.Line({ x + 1, y + height + dListHeight }, { x + width, y + height + dListHeight }, 1, COGUI::COGUI_COLOR(80, 80, 80));
-	draw.Line({ x + width, y + height }, { x + width, y + height + dListHeight }, 1, COGUI::COGUI_COLOR(80, 80, 80));
+	draw.Line({ x + 1, y + height }, { x + 1, y + height + fDropListHeight }, 1, COGUI::COGUI_COLOR(80, 80, 80));
+	draw.Line({ x + 1, y + height + fDropListHeight }, { x + width, y + height + fDropListHeight }, 1, COGUI::COGUI_COLOR(80, 80, 80));
+	draw.Line({ x + width, y + height }, { x + width, y + height + fDropListHeight }, 1, COGUI::COGUI_COLOR(80, 80, 80));
 
-	draw.ClipRectBegin({ x, y + height, x + width, y + height + dListHeight });
+	draw.ClipRectBegin({ x, y + height, x + width, y + height + fDropListHeight });
 
-	for (UINT i = 0; i < dListHeight / lHeight; i++)
+	for (UINT i = 0; i < fDropListHeight / fLineHeight; i++)
 	{
-		if (cFileNames == activeLine + i)
+		if (vecLineNames.size() == activeLine + i)
 			break;
 
-		draw.String({ x, y + height + (i * lHeight) }, textInfo, pFileNames[activeLine + i], lFileNames[activeLine + i], FONT_NAME, FONT_SIZE, { width, lHeight });
+		draw.String({ x, y + height + (i * fLineHeight) }, textInfo, vecLineNames[activeLine + i].c_str(), vecLineNames[activeLine + i].length(), FONT_NAME, FONT_SIZE, { width, fLineHeight });
 	}
 
 	draw.ClipRectEnd();
@@ -137,14 +140,17 @@ BOOL DropList::Render()
 
 DropList::DropList()
 {
-	elementID = COGUI_DropList;
-
-	dListHeight = 200;
-	lHeight = 20;
+	type = COGUI_DropList;
 
 	textInfo.clip = true;
 	textInfo.color = COGUI::COGUI_COLOR(255, 255, 255);
 	textInfo.multiline = false;
 	textInfo.xAlign = 2;
 	textInfo.yAlign = 2;
+
+	fDropListHeight = 200;
+	fLineHeight = 20;
+
+	activeLine = 0;
+	selectedLine = 0;
 }

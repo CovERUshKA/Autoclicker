@@ -61,7 +61,7 @@ BOOL MinimizeButton::Render()
 
 MinimizeButton::MinimizeButton()
 {
-	elementID = COGUI_MinimizeButton;
+	type = COGUI_MinimizeButton;
 
 	pressed = false;
 

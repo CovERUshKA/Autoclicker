@@ -60,7 +60,7 @@ BOOL CloseButton::Render()
 
 CloseButton::CloseButton()
 {
-	elementID = COGUI_CloseButton;
+	type = COGUI_CloseButton;
 
 	pressed = false;
 

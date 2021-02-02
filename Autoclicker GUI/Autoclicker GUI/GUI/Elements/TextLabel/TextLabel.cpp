@@ -9,7 +9,7 @@ BOOL TextLabel::ApplyMessage(LPVOID COGUIWndProc)
 	return TRUE;
 }
 
-BOOL TextLabel::Render(COGUIHANDLE lpElement)
+BOOL TextLabel::Render()
 {
 	BOOL curInField = io.CursorInField({ x, y },
 		{ x + width, y + height });
@@ -23,7 +23,7 @@ BOOL TextLabel::Render(COGUIHANDLE lpElement)
 
 TextLabel::TextLabel()
 {
-	elementID = COGUI_TextLabel;
+	type = COGUI_TextLabel;
 
 	textInfo.clip = true;
 	textInfo.color = COGUI::COGUI_COLOR(255, 255, 255);

@@ -3,27 +3,31 @@
 #define FONT_NAME L"Consolas"
 #define FONT_SIZE 15
 
-void TextEdit::add_chr(UINT symbol, UINT posNumber, BOOL uppercase)
+// uPos - 0 equal to the first place
+void TextEdit::add_chr(UINT character, UINT uPos, BOOL uppercase)
 {
-	if (posNumber > strLength
-		|| strLength == NULL)
+	if (uPos > wchElementName.length()
+		|| wchElementName.length() == NULL)
 		return;
+
+	wchElementName.insert(wchElementName.begin() + uPos, character);
 
 	cursor.Pos += 1;
 
 	return;
 }
 
+// number - 1 equal to the first character
 void TextEdit::delete_chr(UINT number)
 {
 	if (number == NULL
-		|| number > strLength
-		|| strLength == NULL)
+		|| number > wchElementName.length()
+		|| wchElementName.length() == NULL)
 		return;
 
 	number -= 1;
 
-	
+	wchElementName.erase(wchElementName.begin() + number);
 
 	cursor.Pos -= 1;
 
@@ -32,7 +36,7 @@ void TextEdit::delete_chr(UINT number)
 
 void TextEdit::delete_selection()
 {
-	if (strLength == NULL)
+	if (wchElementName.length() == NULL)
 		return;
 
 	UINT start = selection.startSymbolPos > selection.endSymbolPos ? selection.endSymbolPos : selection.startSymbolPos;
@@ -68,7 +72,7 @@ DWORD TextEdit::GetNearestSymbol()
 
 	if (params == DT_LEFT)
 	{
-		for (UINT i = 0; i < strLength + 1; i++)
+		for (UINT i = 0; i < wchElementName.length() + 1; i++)
 		{
 			ZeroMemory(&rc, sizeof(RECT));
 
@@ -94,7 +98,7 @@ DWORD TextEdit::GetNearestSymbol()
 	return pSymbol;
 }
 
-BOOL TextEdit::ApplyMessage(COGUIHANDLE lpElement, LPVOID COGUIWndProc)
+BOOL TextEdit::ApplyMessage(LPVOID COGUIWndProc)
 {
 	if (COGUIWndProc == NULL)
 		return FALSE;
@@ -121,7 +125,7 @@ BOOL TextEdit::ApplyMessage(COGUIHANDLE lpElement, LPVOID COGUIWndProc)
 	case DOWN:
 	{
 		if (!curInField && COGUI::GetActiveElementID() == ID)
-			COGUI::SetActiveElementID(0);
+			COGUI::SetActiveElementID(-1);
 
 		if (curInField)
 		{
@@ -129,10 +133,7 @@ BOOL TextEdit::ApplyMessage(COGUIHANDLE lpElement, LPVOID COGUIWndProc)
 				COGUI::SetActiveElementID(ID);
 
 			selection.selecting = true;
-			selection.startSymbolPos = GetNearestSymbol();
-			selection.endSymbolPos = GetNearestSymbol();
-
-			cursor.Pos = GetNearestSymbol();
+			selection.startSymbolPos = selection.endSymbolPos = cursor.Pos = GetNearestSymbol();
 		}
 	}
 	break;
@@ -141,8 +142,7 @@ BOOL TextEdit::ApplyMessage(COGUIHANDLE lpElement, LPVOID COGUIWndProc)
 		if (COGUI::GetActiveElementID() == ID)
 		{
 			selection.selecting = false;
-			selection.endSymbolPos = GetNearestSymbol();
-			cursor.Pos = GetNearestSymbol();
+			selection.endSymbolPos = cursor.Pos = GetNearestSymbol();
 		}
 	}
 		break;
@@ -154,14 +154,13 @@ BOOL TextEdit::ApplyMessage(COGUIHANDLE lpElement, LPVOID COGUIWndProc)
 		return TRUE;
 
 	if (selection.selecting)
-	{
-		selection.endSymbolPos = GetNearestSymbol();
-		cursor.Pos = GetNearestSymbol();
-	}
+		selection.endSymbolPos = cursor.Pos = GetNearestSymbol();
 
+	// Handle backspace input
 	if (io.keys[VK_BACK][1] == InputStates::DOWN)
 		delete_selection();
 	
+	// Handle ' ' character
 	if (io.keys[VK_SPACE][1] == InputStates::DOWN)
 		if (selection.startSymbolPos != selection.endSymbolPos)
 		{
@@ -171,6 +170,7 @@ BOOL TextEdit::ApplyMessage(COGUIHANDLE lpElement, LPVOID COGUIWndProc)
 		else
 			add_chr(VK_SPACE, cursor.Pos, uppercase);
 
+	// Handle '.' character
 	if (io.keys[VK_OEM_PERIOD][1] == InputStates::DOWN)
 		if (selection.startSymbolPos != selection.endSymbolPos)
 		{
@@ -207,7 +207,7 @@ BOOL TextEdit::ApplyMessage(COGUIHANDLE lpElement, LPVOID COGUIWndProc)
 	return TRUE;
 }
 
-BOOL TextEdit::Render(COGUIHANDLE lpElement)
+BOOL TextEdit::Render()
 {
 	BOOL curInField = io.CursorInField({ x, y },
 		{ x + width, y + height });
@@ -226,7 +226,7 @@ BOOL TextEdit::Render(COGUIHANDLE lpElement)
 			draw.Rectangle({ x + startPos.x, y }, endPos.x - startPos.x, height, COGUI::COGUI_COLOR(0, 0, 255, 50));
 	}
 
-	draw.String({ x, y }, textInfo, wchElementName.c_str(), strLength, FONT_NAME, FONT_SIZE, { width, height });
+	draw.String({ x, y }, textInfo, wchElementName.c_str(), wchElementName.length(), FONT_NAME, FONT_SIZE, { width, height });
 
 	if (COGUI::GetActiveElementID() == ID)
 	{
@@ -240,7 +240,7 @@ BOOL TextEdit::Render(COGUIHANDLE lpElement)
 
 TextEdit::TextEdit()
 {
-	elementID = COGUI_TextEdit;
+	type = COGUI_TextEdit;
 
 	textInfo.clip = true;
 	textInfo.color = COGUI::COGUI_COLOR(255, 255, 255);

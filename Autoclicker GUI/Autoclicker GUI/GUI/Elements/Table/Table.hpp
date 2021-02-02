@@ -5,7 +5,6 @@
 #include "../../CoGUI.hpp"
 #include "../../IO/IO.hpp"
 #include "../../Def.hpp"
-#include "../ID.hpp"
 
 struct Column
 {
@@ -20,14 +19,12 @@ public:
 	Table();
 	TextInformation textInfo;
 
-	LPWCH* pwchLineStrings;
-	LPINT strLengths;
+	vector<wstring> vecLineStrings;
 
-	INT activeLine;
-	INT cLines;
+	DWORD activeLine;
 	float lHeight;
 	INT selectedLine;
 
-	BOOL Render();
-	BOOL ApplyMessage();
+	BOOL Render() override;
+	BOOL ApplyMessage(LPVOID COGUIWndProc) override;
 };

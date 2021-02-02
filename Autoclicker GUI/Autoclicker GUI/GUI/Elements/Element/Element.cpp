@@ -1,10 +1,21 @@
 #include "Element.hpp"
 
+void Element::Init(COGUI_ElementCreateStruct createStruct)
+{
+	ID = createStruct.ID;
+	x = createStruct.x;
+	y = createStruct.y;
+	width = createStruct.nWidth;
+	height = createStruct.nHeight;
+	params = createStruct.uiParams;
+	wchElementName = createStruct.lpElementName;
+}
+
 Element::Element()
 {
-	ID = -1;
+	type = -1;
 	visible = true;
-	elementID = -1;
+	ID = -1;
 
 	x = y = 0;
 	width = height = 0;

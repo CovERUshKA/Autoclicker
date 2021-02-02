@@ -8,7 +8,6 @@
 #include "../../CoGUI.hpp"
 #include "../../IO/IO.hpp"
 #include "../../Def.hpp"
-#include "../ID.hpp"
 
 class DropList : public Element
 {
@@ -17,14 +16,13 @@ public:
 	TextInformation textInfo;
 
 	bool opened = false;
-	INT activeLine = 0;
+	DWORD activeLine;
+	DWORD selectedLine;
 
-	FLOAT dListHeight;
-	FLOAT lHeight;
+	FLOAT fDropListHeight;
+	FLOAT fLineHeight;
 
-	LPWCH* pFileNames;
-	LPINT lFileNames;
-	UINT cFileNames;
+	vector<wstring> vecLineNames;
 
 	BOOL Render();
 	BOOL ApplyMessage(LPVOID lpCOGUIWndProc);

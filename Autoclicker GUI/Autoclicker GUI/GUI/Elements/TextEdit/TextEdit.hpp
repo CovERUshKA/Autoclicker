@@ -5,7 +5,6 @@
 #include "../../CoGUI.hpp"
 #include "../../IO/IO.hpp"
 #include "../../Def.hpp"
-#include "../ID.hpp"
 
 class TextEdit : public Element
 {
@@ -28,8 +27,8 @@ public:
 		UINT endSymbolPos = 0;
 	} selection;
 
-	BOOL Render(COGUIHANDLE lpElement);
-	BOOL ApplyMessage(COGUIHANDLE lpElement, LPVOID lpCOGUIWndProc);
+	BOOL Render() override;
+	BOOL ApplyMessage(LPVOID lpCOGUIWndProc) override;
 
 private:
 	DWORD GetNearestSymbol();

@@ -37,7 +37,7 @@ BOOL Button::ApplyMessage(LPVOID COGUIWndProc)
 	return TRUE;
 }
 
-BOOL Button::Render(COGUIHANDLE lpElement)
+BOOL Button::Render()
 {
 	BOOL curInField = io.CursorInField({ x, y },
 		{ x + width, y + height });
@@ -59,7 +59,7 @@ BOOL Button::Render(COGUIHANDLE lpElement)
 
 Button::Button()
 {
-	elementID = COGUI_Button;
+	type = COGUI_Button;
 
 	pressed = false;
 

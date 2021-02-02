@@ -3,7 +3,7 @@
 #define FONT_NAME L"Consolas"
 #define FONT_SIZE 15
 
-BOOL Table::ApplyMessage()
+BOOL Table::ApplyMessage(LPVOID COGUIWndProc)
 {
 	BOOL curInField = io.CursorInField({ x, y },
 		{ x + width, y + height });
@@ -13,14 +13,14 @@ BOOL Table::ApplyMessage()
 	case DOWN:
 	{
 		if (curInField
-			&& cLines != NULL)
+			&& vecLineStrings.size() != NULL)
 		{
 			for (INT i = 0; i < height / lHeight; i++)
 			{
 				if (io.CursorInField({ x, y + (i * lHeight) }, { x + width, y + ((i + 1) * lHeight) }))
 				{
 					INT selLine = activeLine + i;
-					if (selLine > cLines)
+					if (selLine > vecLineStrings.size())
 						break;
 					else
 						selectedLine = selLine;
@@ -37,7 +37,7 @@ BOOL Table::ApplyMessage()
 	{
 	case DOWN:
 	{
-		if (cLines - activeLine > 1)
+		if (vecLineStrings.size() - activeLine > 1)
 		{
 			activeLine += 1;
 		}
@@ -70,13 +70,13 @@ BOOL Table::Render()
 	UINT strRendered = 0;
 	for (INT i = 0; i < height / lHeight; i++)
 	{
-		if (activeLine + i + 1 > cLines)
+		if (activeLine + i + 1 > vecLineStrings.size())
 			break;
 
 		if (activeLine + i == selectedLine)
 			draw.Rectangle({ x, y + (i * lHeight) }, width, lHeight, COGUI::COGUI_COLOR(0, 0, 255, 100));
 
-		draw.String({ x, y + (i * lHeight) }, textInfo, pwchLineStrings[activeLine + i], strLengths[activeLine + i], FONT_NAME, FONT_SIZE, { width, lHeight });
+		draw.String({ x, y + (i * lHeight) }, textInfo, vecLineStrings[activeLine + i].c_str(), vecLineStrings[activeLine + i].length(), FONT_NAME, FONT_SIZE, { width, lHeight });
 		strRendered += 1;
 
 		if (strRendered == height / lHeight)
@@ -90,6 +90,8 @@ BOOL Table::Render()
 
 Table::Table()
 {
+	type = COGUI_Table;
+
 	textInfo.clip = true;
 	textInfo.color = COGUI::COGUI_COLOR(255, 255, 255);
 	textInfo.multiline = false;
@@ -97,8 +99,6 @@ Table::Table()
 	textInfo.yAlign = 2;
 
 	activeLine = 0;
-	cLines = 0;
 	lHeight = 20;
 	selectedLine = -1;
-	elementID = COGUI_Table;
 }

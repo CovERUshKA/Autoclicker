@@ -5,7 +5,6 @@
 #include "../../CoGUI.hpp"
 #include "../../IO/IO.hpp"
 #include "../../Def.hpp"
-#include "../ID.hpp"
 #include "../../Elements.hpp"
 
 class Button : public Element
@@ -16,6 +15,6 @@ public:
 
 	bool pressed;
 
-	BOOL Render(COGUIHANDLE lpElement);
-	BOOL ApplyMessage(LPVOID lpCOGUIWndProc);
+	BOOL Render() override;
+	BOOL ApplyMessage(LPVOID lpCOGUIWndProc) override;
 };

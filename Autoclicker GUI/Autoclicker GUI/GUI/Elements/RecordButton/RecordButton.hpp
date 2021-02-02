@@ -5,7 +5,14 @@
 #include "../../CoGUI.hpp"
 #include "../../IO/IO.hpp"
 #include "../../Def.hpp"
-#include "../ID.hpp"
+
+struct RecordButtonReceive
+{
+	CHAR key;
+
+	LPWCH pStr;
+	DWORD strLength;
+};
 
 class RecordButton : public Element
 {
@@ -16,6 +23,6 @@ public:
 	bool pressed = false;
 	bool recording = false;
 
-	BOOL Render(COGUIHANDLE lpElement);
-	BOOL ApplyMessage(LPVOID lpCOGUIWndProc);
+	BOOL Render() override;
+	BOOL ApplyMessage(LPVOID lpCOGUIWndProc) override;
 };

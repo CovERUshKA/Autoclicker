@@ -99,7 +99,8 @@ BOOL RecordButton::ApplyMessage(LPVOID COGUIWndProc)
 
 			RecordButtonReceive rbreceive;
 			rbreceive.key = i;
-			rbreceive.pStr = wchElementName;
+			rbreceive.pStr = (LPWCH)wchElementName.c_str();
+			rbreceive.strLength = wchElementName.length();
 
 			lpCOGUIWndProc(ID, 0, &rbreceive);
 			recording = false;
@@ -110,7 +111,7 @@ BOOL RecordButton::ApplyMessage(LPVOID COGUIWndProc)
 	return TRUE;
 }
 
-BOOL RecordButton::Render(COGUIHANDLE lpElement)
+BOOL RecordButton::Render()
 {
 	BOOL curInField = io.CursorInField({ x, y },
 		{ x + width, y + height });
@@ -130,7 +131,7 @@ BOOL RecordButton::Render(COGUIHANDLE lpElement)
 
 RecordButton::RecordButton()
 {
-	elementID = COGUI_RecordButton;
+	type = COGUI_RecordButton;
 
 	textInfo.clip = true;
 	textInfo.color = COGUI::COGUI_COLOR(255, 255, 255);

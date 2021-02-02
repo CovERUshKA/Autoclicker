@@ -4,6 +4,7 @@
 #include <Windowsx.h>
 #include <string>
 #include <d3d11.h>
+#include <vector>
 
 #include "Elements.hpp"
 #include "../../../Log.hpp"
@@ -11,32 +12,19 @@
 #include "IO/IO.hpp"
 #include "Memory/Memory.hpp"
 #include "Def.hpp"
-#include "Elements/ID.hpp"
 
+// lParam - pointer to the element
 constexpr auto COGUI_CREATE = 1;
+
+// lParam - pointer to the element
 constexpr auto COGUI_RENDER = 2;
+
+// lParam - pointer to the element
 constexpr auto COGUI_INPUT = 3;
 
 constexpr auto COGUI_DL_PREOPEN = 1;
 constexpr auto COGUI_DL_POSTCLOSE = 2;
 constexpr auto COGUI_DL_CHOOSE = 3;
-
-struct DropListReceive
-{
-	std::wstring pStr;
-};
-
-struct ElementCreateStruct
-{
-	UINT elementID;
-	LPCWSTR lpElementName;
-	FLOAT x;
-	FLOAT y;
-	FLOAT nWidth;
-	FLOAT nHeight;
-	UINT uiParams;
-	INT ID;
-};
 
 namespace COGUI
 {
@@ -53,18 +41,18 @@ namespace COGUI
 	BOOL       Render();
 	BOOL       IsVisible(INT elementID, bool* lpBool);
 	BOOL       ShowElement(INT elementID, bool bVisible);
-	INT        GetID(COGUIHANDLE hElement);
-	INT        GetElementID(COGUIHANDLE hElement);
-	BOOL       AddTableColumn(INT elementID, LPWCH pwchName, INT strLength);
-	BOOL       AddTableString(INT elementID, LPWCH pwchName, INT strLength);
-	BOOL       AddDropListString(INT elementID, LPWCH pStr, INT strLength);
+	INT        GetID(Element* lpElement);
+	INT        GetElementType(Element* lpElement);
+	//BOOL       AddTableColumn(INT elementID, LPWCH pwchName);
+	BOOL       AddTableString(INT elementID, wstring pwchName);
+	BOOL       AddDropListString(INT elementID, wstring pStr);
 	INT        GetDropListSelectedLine(INT elementID);
-	LPWCH      GetDropListSelectedLineName(INT elementID);
+	wstring    GetDropListSelectedLineName(INT elementID);
 	HWND       GetWindow();
 	D2D1_SIZE_F GetWindowSize();
 	INT        GetActiveElementID();
 	BOOL       SetActiveElementID(INT eID);
-	BOOL       SetElementText(INT elementID, const wchar_t* cBuf, UINT cbSize);
+	BOOL       SetElementText(INT elementID, wstring wText);
 	INT        GetTableSelectedLine(INT elementID);
 	BOOL       DeleteTableLine(INT elementID, INT nLine);
 	BOOL       ClearDropList(INT elementID);
