@@ -21,23 +21,7 @@
 #include "GUI/CoGUI.hpp"
 #include "GUI/Draw/Draw.hpp"
 #include "GUI/IO/IO.hpp"
-
-typedef HWND(WINAPI* CreateWindowInBandEx)(
-	_In_ DWORD dwExStyle,
-	_In_opt_ ATOM atom,
-	_In_opt_ LPCWSTR lpWindowName,
-	_In_ DWORD dwStyle,
-	_In_ int X,
-	_In_ int Y,
-	_In_ int nWidth,
-	_In_ int nHeight,
-	_In_opt_ HWND hWndParent,
-	_In_opt_ HMENU hMenu,
-	_In_opt_ HINSTANCE hInstance,
-	_In_opt_ LPVOID lpParam,
-	_In_ DWORD dwBand,
-	_In_ DWORD dwTypeFlags
-	);
+#include "Def.hpp"
 
 namespace Overlay
 {
